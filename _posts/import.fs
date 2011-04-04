@@ -13,8 +13,8 @@ type Post =
     {
         Title : string option
         Date : DateTime option
-        Categories : string list
-        Tags : string list
+        Categories : Set<string>
+        Tags : string option
         BaseName : string option
         Format : Format
         Body : string list
@@ -23,8 +23,8 @@ type Post =
         {
             Title = None
             Date = None
-            Tags = List.empty
-            Categories = List.empty
+            Categories = Set.empty
+            Tags = None
             BaseName = None
             Format = Html
             Body = List.empty
@@ -38,6 +38,8 @@ let (|Header|) (s : string) : string * string =
 
 [<EntryPoint>]
 let Main _ =
+    // Parse a text file in Movable Type format and write it back out as
+    //  a set of text files in Blogofile format.
     try
         let rec impl (tr : TextReader) (posts : Post list) (state : State) : Post list =
             match tr.ReadLine() with
@@ -53,8 +55,10 @@ let Main _ =
                     match state, s with
                     | Yaml, Header("TITLE", s) -> { post with Title = Some s } :: rest, Yaml
                     | Yaml, Header("BASENAME", s) -> { post with BaseName = Some s } :: rest, Yaml
-                    | Yaml, Header("CONVERT BREAKS", "markdown") -> { post with Format = Markdown } :: rest, Yaml
+                    | Yaml, Header("CONVERT BREAKS", s) when s.StartsWith("markdown") -> { post with Format = Markdown } :: rest, Yaml
                     | Yaml, Header("DATE", s) -> { post with Date = Some (DateTime.ParseExact(s, "MM/dd/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)) } :: rest, Yaml
+                    | Yaml, Header(("CATEGORY" | "PRIMARY_CATEGORY"), s) -> { post with Categories = Set.add s post.Categories } :: rest, Yaml
+                    | Yaml, Header("TAGS", s) -> { post with Tags = Some s } :: rest, Yaml
                     | (Yaml | Body _), "-----"  -> posts, AwaitingBodyPart
                     | AwaitingBodyPart, Header(part, "") -> posts, Body part
                     | Body "BODY", s -> { post with Body = s :: post.Body } :: rest, state
@@ -105,17 +109,18 @@ let Main _ =
                     | Some dt -> Some (dt.ToString("yyyy/MM/dd HH:mm:ss"))
                     | None -> None
                 
-                let concat =
-                    function
-                    | [] -> None
-                    | list -> Some (String.concat "," list)
+                let concat set =
+                    if Set.isEmpty set then
+                        None
+                    else
+                        Some (String.concat "," set)
 
                 fprintfn sw "---"
                 header "title" post.Title
                 header "date" date
                 header "updated" date
                 header "categories" (concat post.Categories)
-                header "tags" (concat post.Tags)
+                header "tags" post.Tags
                 
                 post.Date |> Option.iter (fun dt ->
                     let permalink = sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month baseName

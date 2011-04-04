@@ -2,6 +2,8 @@
 title: What's a control flow graph?
 date: "2009/07/26 12:49:27"
 updated: "2009/07/26 12:49:27"
+categories: Compiler
+tags: F#
 permalink: /blog/2009/07/whats-a-control-flow-graph.html
 ---
 I'd like to add tail call support to my [Lisp compiler](http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html). I can think of two approaches to tail recursion:

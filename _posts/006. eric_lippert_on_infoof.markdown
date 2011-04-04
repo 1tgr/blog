@@ -2,6 +2,7 @@
 title: Eric Lippert on infoof()
 date: "2009/05/22 18:42:58"
 updated: "2009/05/22 18:42:58"
+tags: C#
 permalink: /blog/2009/05/eric-lippert-on-infoof.html
 ---
 I previously mentioned some [hypothetical C# `fieldof` and `methodof` operators](http://www.partario.com/blog/2009/04/more-il-features-missing-from-c.html), which would obtain `FieldInfo` and `MethodInfo` objects, in the same way that `typeof` retrieves `Type` at runtime.

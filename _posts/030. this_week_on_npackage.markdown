@@ -2,6 +2,7 @@
 title: This week on NPackage
 date: "2010/05/09 20:19:43"
 updated: "2010/05/09 20:19:43"
+categories: NPackage
 permalink: /blog/2010/05/this-week-on-npackage.html
 ---
 [Browse the NPackage source on GitHub](http://github.com/timrobinson/NPackage)

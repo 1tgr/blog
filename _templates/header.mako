@@ -1,23 +1,17 @@
 <% import urlparse %>
-<div id="header" onclick="location.href='${bf.util.site_path_helper()}';" style="cursor: pointer;">
+<div id="header" onclick="location.href='${bf.config.blog.path}';" style="cursor: pointer;">
   <div id="plugbanner"></div>
   <div id="blog_logo"></div>
-  <h1><a href="/">
+  <h1><a href="${bf.config.blog.path}">
       <span id="blog_name">
         ${bf.config.blog.name}
       </span>
     </a>
   </h1>
 </div>
-<a href="http://github.com/EnigmaCurry/blogofile"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
 <div id="top_bar">
   <div class="ButtonBar">
-    <ul>
-      <li><a href="/">Home</a></li>
-      <li><a href="${bf.util.site_path_helper('/documentation')}">Documentation</a></li>
-      <li><a href="${bf.util.site_path_helper('/community')}">Community</a></li>
-      <li><a href="${bf.config.util.site_path_helper(bf.config.blog.path)}">Blog</a></li>
-    </ul>
+    &nbsp;
   </div>
   <div id="search">    
     <form id="searchform" method="get" action="http://www.google.com/search">
