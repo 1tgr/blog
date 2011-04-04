@@ -1,0 +1,14 @@
+---
+title: dollop, a Python Lisp interpreter
+date: "2009/06/15 09:00:02"
+updated: "2009/06/15 09:00:02"
+categories: 
+tags: 
+---
+<p>Via Hacker News, <a href="http://4.flowsnake.org/archives/602">Hans Nowak's proof of concept</a>:</p>
+<blockquote>
+  The proof-of-concept implementation that uses this concept is called <a href="http://projects.flowsnake.org/dollop.html">dollop</a> and is available at <a href="http://github.com/zephyrfalcon/dollop/tree/master">github</a>. (Requires Python 3.0.) The name is because it's only a "dollop of Lisp" (or rather, Scheme); it only supports a few special forms (<em>begin</em>, <em>define</em>, <em>if</em>, <em>lambda</em>), and a few functions for example programs (+, -, *, =, <em>list</em>). It cuts corners in other ways as well, as my goal was to get a working proof-of-concept out, not to write a complete Scheme interpreter.
+</blockquote>
+<p>Hans explains how he avoids stack overflow, due to tail recursion, by replacing the machine call stack with an explicit stack data structure in his interpreter. A tail call replaces the token at the end of this stack, instead of pushing a new one.</p>
+<p>This is a technique you can apply in an interpreter based around an eval-apply cycle: with a <a href="/blog/2009/06/lisp-compiler-in-f-whats-next.html">full compiler</a>, the principle is the same, but you have to detect tail calls in advance and generate the correct bytecode -- say, a .NET <em>tail.call</em> instruction or an x86 <em>jmp</em> opcode.</p>
+

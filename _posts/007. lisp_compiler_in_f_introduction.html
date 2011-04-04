@@ -1,0 +1,107 @@
+---
+title: "Lisp compiler in F#: Introduction"
+date: "2009/05/30 22:34:24"
+updated: "2009/05/30 22:34:24"
+categories: 
+tags: 
+---
+<p><a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p>I started learning functional programming in F# and Haskell around 6 months ago, and one of the programs I've been writing in order to learn F# is a small Lisp compiler, with syntax similar to <a href="http://en.wikipedia.org/wiki/Scheme_(programming_language)">Scheme</a>:</p>
+[code:plain]
+(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))
+(Console.WriteLine "6! = {0}" (fact 6))
+(Console.WriteLine "What is your name?")
+(Console.WriteLine "Hello, {0}" (Console.ReadLine))
+[/code]
+<p>I'm planning on posting a series of articles explaining how the compiler demonstrates some useful F# features. By way of an introduction, I'd like to talk about two of my favourite features from functional languages: discriminated unions and pattern matching.</p>
+<p>At their simplest, discriminated unions are equivalent to .NET enums, since they allow a strongly-types variable to hold one of a fixed set of values:</p>
+[code:fsharp]
+(*
+ * Rough C# equivalent:
+ * public enum ListOp { Add, Subtract, Multiply, Divide, Equal }
+ *)
+
+type ListOp = Add
+            | Subtract 
+            | Multiply 
+            | Divide 
+            | Equal
+[/code]
+<p>But each of these possible values can be tagged with a data structure, which means that discriminated unions are useful where an object-orientated language would need a hierarchy of classes:</p>
+[code:fsharp]
+(*
+ * Rough C# equivalent:
+ * public abstract class LispVal { }
+ *
+ * public sealed class ArgRef : LispVal
+ * {
+ *     public ArgRef(int index)
+ *     {
+ *         Index = index;
+ *     }
+ *
+ *     public int Index { get; private set; }
+ * }
+ *
+ * public sealed class Atom : LispVal
+ * {
+ *     public Atom(string text)
+ *     {
+ *         Text = text;
+ *     }
+ *
+ *     public string Text { get; private set; }
+ * }
+ *
+ * etc., for the other cases
+ *)
+type LispVal = 
+             | ArgRef of int                                
+             | Atom of string
+             | Bool of bool
+             | IfPrimitive of LispVal * LispVal * LispVal
+             | LambdaDef of string list * LispVal
+             | LambdaRef of MethodInfo * bool * Type list
+             | List of LispVal list
+             | ListPrimitive of ListOp * LispVal list
+             | Number of int
+             | QuotePrimitive of LispVal
+             | String of string
+             | VariableDef of string * LispVal
+             | VariableRef of LocalBuilder
+[/code]
+<p>When faced with the task of writing code that understands the C# class hierarchy above, I'd implement the <a href="http://en.wikipedia.org/wiki/Visitor_pattern">Visitor pattern</a>: I'd define an interface called <code>ILispValVisitor</code>, and every time I needed to process a <code>LispVal</code> somehow, I'd declare a nested class that implemented the right <code>ILispValVisitor</code> methods. Fairly straightforward, right? -- a boilerplate class implementation in every piece of code that needs to look inside a <code>LispVal</code>.</p>
+<p>Functional languages have a much more elegant alternative, in the form of pattern matching operators. There's no real equivalent to pattern matching in C#, although the concept could be similar to <code>if</code>, <code>switch</code> or the visitor pattern depending on the situation:</p>
+[code:fsharp]
+(*
+ * Rough C# equivalent: an implementation of the visitor pattern
+ *)
+let rec typeOf (env : Map) = function
+    | ArgRef _ -&gt; typeof
+    | Atom a -&gt; a |&gt; ident env |&gt; typeOf env
+    | Bool _ -&gt; typeof
+    | IfPrimitive (_, thenValue, elseValue) -&gt;
+        match typeOf env thenValue with
+        | t when t = typeOf env elseValue -&gt; t
+        | _ -&gt; raise &lt;| Compiler("expected 'then' and 'else' branches to have same type")
+
+    | LambdaDef (_, body) -&gt; typeOf env body
+    | LambdaRef (methodBuilder, _, _) -&gt; methodBuilder.ReturnType
+    | List (Atom a :: args) -&gt; a |&gt; lambdaIdent args env |&gt; typeOf env
+    | List (fn :: _) -&gt; raise &lt;| Compiler(sprintf "can't invoke %A" fn)
+    | List [ ] -&gt; raise &lt;| Compiler("can't compile empty list")
+    | ListPrimitive _ -&gt; typeof
+    | Number _ -&gt; typeof
+    | String _ -&gt; typeof
+    | QuotePrimitive _ -&gt; typeof
+    | VariableDef _ -&gt; typeof
+    | VariableRef local -&gt; local.LocalType
+[/code]
+<p>The Lisp compiler I wrote relies on a discriminated union, <code>LispVal</code> for storing expression trees, and pattern matching for most of its processing. I'll post more in-depth articles covering the source code in detail, including:</p>
+<ul>
+  <li>Parsing with fslex and fsyacc</li>
+
+  <li>Code generation using <code>System.Reflection.Emit</code></li>
+
+  <li>Calling the compiler from C#</li>
+</ul>

@@ -1,0 +1,26 @@
+---
+title: Moving a Perforce project to GitHub
+date: "2009/06/02 20:41:12"
+updated: "2009/06/02 20:41:12"
+categories: 
+tags: 
+---
+<p>I keep all of my home projects in a local <a href="http://www.perforce.com/">Perforce</a> instance. I wanted to put my Lisp compiler code onto <a href="http://github.com/">GitHub</a>; since I'm not paying for a Perforce licence, I'm limited to a single user.</p>
+<p>The GitHub user account and repository setup process was pretty straightforward, until it came to adding files. I haven't been able to find a single set of instructions for this, but I pieced it together thanks to <a href="http://stackoverflow.com/questions/786909/getting-the-whole-files-history-with-p4-git">Stack Overflow</a>:</p>
+<ol>
+  <li>You will need the <em>git-p4</em> Python script from here: <a href="http://repo.or.cz/w/git.git?a=tree;f=contrib/fast-import;hb=HEAD">http://repo.or.cz/w/git.git?a=tree;f=contrib/fast-import;hb=HEAD</a></li>
+
+  <li>From the some empty directory -- not the one that contains the Perforce project -- run the following command to import the entire Perforce version history:<br />
+  <code>python git-p4 clone --destination=. //depot/path/to/project/...@all</code></li>
+
+  <li>You now have a brand new local git repository that contains a clone of the project from Perforce. You need to push it to GitHub:<br />
+  <code>git remote add origin git@github.com:username/repository.git<br />
+  git push origin master</code></li>
+
+  <li>To push subsequent Perforce changes to GitHub:<br />
+  <code>git-p4 sync<br />
+  git push origin master</code></li>
+</ol>
+<p><strong class="alt">Edit:</strong> I almost forgot to include <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">the URL of the compiler source</a></p>
+<p><strong class="alt">Edit 2:</strong> Turns out you mustn't run git commands from a Perforce local directory: as always, Perforce doesn't like it if something else (in this case git) interferes with its local files.</p>
+

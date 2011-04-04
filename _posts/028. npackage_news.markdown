@@ -1,0 +1,38 @@
+---
+title: NPackage news
+date: "2010/04/27 13:00:00"
+updated: "2010/04/27 13:00:00"
+categories: 
+tags: 
+---
+I've had some time over the last couple of evenings to do some coding, so I've made a start on my package manager. So far I'm calling it **NPackage**.
+
+I defined a Yaml-format package file, containing the package name, description, version number; the name and email address of the maintainer; and an optional field for the URL of the download site. The package file then contains a list of libraries (i.e. .NET assembles) contributed by the package, with download URLs specified relative to the download site. 
+
+The idea behind making the download URL optional is that these package files can point to an existing download site for established libraries like NUnit. If the download URL is omitted then the NPackage client will look for binaries on the NPackage server, in the same location as the package file itself. A lot of libraries are going to be distributed in .zip files, so I was planning on having the NPackage client download these .zip files and unpack them into the layout dictated by the package file.
+
+I'm using NPackage to develop NPackage, which means I had to hack together the parsing and download code myself without any unit testing framework or parsing library. Now that I've done that, I've hand-crafted a package file for NUnit (`nunit.np`) that'll let me start writing unit tests.
+
+There are a few areas I'm not sure about:
+
+ * I've started writing it in C#, but I'm tempted to switch to F#, at least for the core functionality. I'm expecting to need some strong dependency graph logic (for dependencies between packages and between files within a package), which will be easier to code in F#. However I'd like to be able to be able to build the sources on Mono, and I'm not aware of a standard way of invoking the F# compiler from a Mono build process.
+ * I'm only dealing with binary distribution for now (and [xcopy deployment](http://en.wikipedia.org/wiki/XCOPY_deployment) at that). Building .NET libraries from source in a standard way could be tricky.
+ * I've picked a [Yaml](http://en.wikipedia.org/wiki/Yaml)-based file format over XML because I expect these package files to be created by hand. As a result, it's going to be harder to generate or parse these files as part of an automated build system.
+
+Here's the notes I made before I got started:
+> 1. Find the package
+>  * Package files like in cabal
+>  * A couple of standard locations: Hackage-like web server, internal source control repository
+>  * Package identified by: name and version
+>  * Deal with variants (like: 2.0 vs 3.5 vs 4.0; 32-bit vs 64-bit) by having separate packages released at the same time
+> 2. Install dependencies
+>  * Package files declare their own dependencies, cabal style
+>  * Recursively fetch and install dependencies
+> 3. Download the code
+>  * Package file specifies location of source code (default is src/ directory relative to package file)
+>  * Packages can release binaries only, e.g. NUnit, log4net etc. get downloaded from their normal locations
+>  * Support fetching from source control as well as HTTP? - may make sense for internal deployments, what about mixing matching SCC systems?
+> 4. Build the code
+>  * Skip this if the package just has binaries
+> 5. Reference the binaries
+>  * Update VS solution and project files

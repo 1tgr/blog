@@ -1,0 +1,167 @@
+---
+title: A spelling corrector in Haskell
+date: "2009/10/31 15:07:09"
+updated: "2009/10/31 15:07:09"
+categories: 
+tags: 
+---
+<strong class="alt">Update:</strong> Thanks to the commenters on this blog and on Reddit, I've got [a much improved and more readable Haskell port](http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html) of the spelling corrector.
+
+On Wednesday I attended the [StackOverflow DevDay](http://stackoverflow.carsonified.com/events/london/) in London, which was a day of excellent talks by engaging speakers. Michael Sparks gave a talk on Python, where he built up [Peter Norvig's spelling corrector](http://www.norvig.com/spell-correct.html) line by line as we watched. I was impressed by how easy it was to understand the source code, and the style struck me as being particularly functional. So, I was compelled to translate the Python source into Haskell.
+
+This post is also a Literate Haskell program, meaning that you should be able to copy the text from the page, paste it into a `.lhs` file, and compile it. Snippets starting with `>` are Haskell; in between is Peter's original program, and my commentary on the differences.
+
+<pre>
+# Python code looks like this:
+import re, collections
+
+> -- Haskell code looks like this:
+> module Tim.Spell.Correct where
+>
+> import Char
+> import qualified Data.List as List
+> import qualified Data.Map as Map
+> import qualified Data.Set as Set
+> import Data.Ord
+> import List
+</pre>
+
+Every language needs some imports. The Python program only has two; we're using a scattering of functions outside of the prelude (Haskell's standard library), so we need to import a bit more:
+
+* `Char` gives us `toLower` and `isAlpha`
+* `Data.List` gives us `foldl'`
+* `Data.Map` gives us the `Map` type
+* `Data.Set` gives us the `Set` type
+* `Data.Ord` gives us the `comparing` function
+* `List` gives us `maximumBy`
+
+<pre>
+def words(text): return re.findall('[a-z]+', text.lower())
+
+> lowerWords = filter (not . null) . map (map toLower . filter isAlpha) . words
+</pre>
+
+The Haskell prelude already has a function called words, which splits a string by spaces. `filter isAlpha` and `filter (not . null)` approximate the Python regular expression:
+
+* `filter isAlpha` drops all characters outside of a-z
+* `filter (not . null)` excludes any empty strings (such as sequences of numbers or punctuation in the original text)
+
+<pre>
+def train(features):
+    model = collections.defaultdict(lambda: 1)
+    for f in features:
+        model[f] += 1
+    return model
+
+> train = List.foldl' (\dict word -> Map.insertWith' (+) word (1::Int) dict) Map.empty 
+</pre>
+
+Haskell doesn't need an explicit loop here: we use `foldl'` to iterate over the list of words and add each one to a map. The `Map.insertWith'` function either inserts a value (if missing), or extracts the existing value, applies it to a function, and inserts the result back in the map.
+
+<pre>
+NWORDS = train(words(file('big.txt').read()))
+
+> readNWORDS = readFile "big.txt" >>= return . train . lowerWords
+</pre>
+
+A big difference in the Haskell version is that file I/O is encapsulated in an IO monad. So whereas Python's `NWORDS` variable is an actual dictionary, `readNWORDS` is a I/O value that, when executed, reads and parses a file and yields a dictionary.
+
+<pre>
+alphabet = 'abcdefghijklmnopqrstuvwxyz'
+
+> alphabet = [ 'a' .. 'z' ]
+</pre>
+
+I put a cheeky shortcut in the Haskell version. (It makes no difference to the line count.)
+
+<pre>
+def edits1(word):
+   s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
+   deletes    = [a + b[1:] for a, b in s if b]
+   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)>1]
+   replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
+   inserts    = [a + c + b     for a, b in s for c in alphabet]
+   return set(deletes + transposes + replaces + inserts)
+
+> edits1 word =
+>     let s = [ (take i word, drop i word) | i <- [ 0 .. length word ] ]
+>         deletes    = [ a ++ tail b | (a, b) <- s, not $ null b ]
+>         transposes = [ a ++ b!!1 : b!!0 : drop 2 b | (a, b) <- s, not $ null b, not $ null $ tail b ]
+>         replaces   = [ a ++ c : tail b | (a, b) <- s, c <- alphabet, not $ null b ]
+>         inserts    = [ a ++ c : b | (a, b) <- s, c <- alphabet ]
+>     in Set.fromList (deletes ++ transposes ++ replaces ++ inserts)
+</pre>
+
+The Haskell and Python versions of this function are fairly close. The main differences:
+
+* Haskell uses the `let` ... `in` keywords to declare values
+* List comprehension syntax is very similar, if you replace Python's `for` and `in` with Haskell's `|` and `<-`. (Recurring theme: Haskell prefers symbols to keywords.)
+* `[ start .. end ]` is Haskell's built-in range syntax. It's lazy, and generates elements only on demand, which means it's fine to construct an infinite list like this: `[ 1 .. ]`
+* Python has neat string slicing syntax:
+ * `[:i]` is replaced with `take i`, to take the first _i_ characters
+ * `[i:]` is replaced with `drop i`, to take all but the first _i_ characters
+ * Subscripts can be replaced with the `!!` operators, which does the same thing, but with O(_N_) complexity. Remember Haskell's strings are lists of characters, not arrays (although see `Data.ByteString`).
+* Python's `if` keyword maps to different things depending on the context. Here it's used to ask 'is the string empty?', and we replace it with the `not` and `null` functions.
+* `++` and `:` stand in for Python's `+` operator, depending on whether we're concatenating two lists (`a ++ b`) or pushing a single element onto the start of a list (`head : tail`)
+
+I'm not totally convinced about the performance of the Haskell version, since `take` and `drop` are O(_N_) and not O(1). However, _N_ is small here, being the length of a word. If it's a problem we could use `ByteString` instead for O(1) complexity at the price of having to copy strings.
+
+<pre>
+def known_edits2(word):
+    return set(e2 for e1 in edits1(word) for e2 in edits1(e1) if e2 in NWORDS)
+
+> known_edits2 knownWords = Set.unions . Set.elems . Set.map (Set.intersection knownWords . edits1) . edits1
+</pre>
+
+Here I replaced the Python list comprehensions with Haskell's built-in set functions. We can't iterate directly over a set in Haskell, so if we used a list comprehension here, we'd to use `elems` to produce a list from the set and `fromList` to turn the result into a set again. Here I feel that the Python version demonstrates the intent more clearly, which is to produce a set of edits from `edit1`, then run those through `edit1` again, and keep only the edits that turn out to be real words.
+
+Read from right to left, what the Haskell version does is:
+
+* Produces a set of edits to a word using `edit1`
+* For each edit in the set, produce another set of edits using `edit1`, and keep only those edits-of-edits that can be found in `knownWords`. We now have a set of sets.
+* Turn a set of sets into a list of sets, using `elems`
+* Collapse that list of sets into a single set of words using `unions`
+
+<pre>
+def known(words): return set(w for w in words if w in NWORDS)
+
+> -- no Haskell equivalent
+</pre>
+
+The `known` function actually disappears in the Haskell version. Because it takes a set of known words instead of a map of word frequencies, it turns into a direct call to `intersection` lower down.
+
+<pre>
+def correct(word):
+    candidates = known([word]) or known(edits1(word)) or known_edits2(word) or [word]
+    return max(candidates, key=NWORDS.get)
+
+> correct nwords word = 
+>     let knownWords = Map.keysSet nwords
+>         candidates = Set.elems
+>                    $ head
+>                    $ filter (not . Set.null)
+>                    $ [ Set.intersection knownWords $ Set.singleton word,
+>                        Set.intersection knownWords $ edits1 word,
+>                        known_edits2 knownWords word,
+>                        Set.singleton word ]
+>       in maximumBy (comparing (\w -> w `Map.lookup` nwords)) candidates
+</pre>
+
+Python has a magic short-circuiting `or` operator, which we have to fake by putting together a list of sets and finding the first non-empty one. Because Haskell is lazy this does in fact short-circuit: for instance, we never make a call to `known_edits2` if we can already find `word` in `knownWords`.
+
+I'm not a fan of `maximumBy` in Haskell, which makes you compare two items yourself; I prefer the Python version, which is similar to .NET's `OrderBy` function. Here, though, the `comparing` function in `Data.Ord` makes the code a little less verbose.
+
+Finally, here's a little command-line demo that corrects words the user types in. It's only at this point that the Haskell version touches the text file that the Python program encapsulates in the `NWORDS` variable; the Haskell version passes the dictionary through each function that needs it. I could have done a direct translation of the Python, but this would have meant writing most of the program as imperative IO monad code, which wasn't really the point of the Haskell translation.
+
+<pre>
+> prompt nwords = do
+>     eof <- isEOF
+>     if eof
+>       then return ()
+>       else do
+>           getLine >>= putStrLn . correct nwords
+>           prompt nwords
+> 
+> main = readNWORDS >>= prompt
+</pre>
+

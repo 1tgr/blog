@@ -1,0 +1,8 @@
+---
+title: Haskell render farm next steps
+date: "2010/04/14 17:39:20"
+updated: "2010/04/14 17:39:20"
+categories: 
+tags: 
+---
+

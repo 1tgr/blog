@@ -1,0 +1,389 @@
+---
+title: "Lisp compiler in F#: IL generation"
+date: "2009/06/06 14:47:14"
+updated: "2009/06/06 14:47:14"
+categories: 
+tags: 
+---
+<p>This is part 4 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a>, <a href="/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html">Expression trees and .NET methods</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p>What we've done up to this point is:</p>
+<ul>
+  <li>Taken a string representing a Lisp program and turned it into an F# data structure representing a list of <a href="http://en.wikipedia.org/wiki/S_expression">s-expressions</a></li>
+
+  <li>Reformatted these s-expressions so we can take some shortcuts when we generate IL</li>
+
+  <li>Written a couple of helper functions that pick the right overload of a .NET method (which our hello world program needs in order to call <code>Console.WriteLine</code>)</li>
+</ul>
+<p>In this post I'm going to cover the final step in the compilation process, the generation of the IL itself. By IL, I'm referring to the <a href="http://en.wikipedia.org/wiki/Common_Intermediate_Language">Common Intermediate Language</a>, the low-level machine-independent opcodes that the .NET JIT compiler turns into native machine code at runtime. The virtual machine on which IL is based operates using a stack for operands and results, rather than the registers that are found on x86 processors. (Using a virtual stack makes IL more portable across CPUs with different register layouts; it's up to the JIT compiler to assign machine registers to stack locations as they're needed.) You can view the IL contained within any .NET assembly using the <em>ildasm</em> tool, which is included with Visual Studio and in the .NET SDK, or within <a href="http://www.red-gate.com/products/reflector/">.NET Reflector</a>.</p>
+<p>An IL hello world looks like this:</p>
+<pre class="brush: plain">
+// Push a System.String instance onto the stack. 
+// The words "Hello world" are embedded within the executable.
+ldstr      "Hello, world"
+
+// Pop one System.Object instance from the stack and call 
+// System.Console.WriteLine. This method is declared void, so 
+// nothing is pushed onto the stack after the method returns.
+call       void [mscorlib]System.Console::WriteLine(object)
+
+// Return to this method's caller
+ret
+</pre>
+<p>Along with the IL, the assembly -- an EXE or a DLL -- contains various metadata, which describes the types and methods defined within the assembly (such as the <code>Program</code> class and its <code>Main</code> method that contains our code above, and the words "Hello world"), as well as the references the assembly's code makes to the outside world (such as the details of the <code>System.Console.WriteLine</code> method). We don't have to write any of this metadata ourselves, though: the <code>System.Reflection.Emit</code> namespace contains a nice set of types that allow us to construct assemblies, types and methods without worrying about putting together the bytes of the final EXE or DLL file.</p>
+<p>We put together the IL itself using the <code>ILGenerator</code> class:</p>
+<pre class="brush: fsharp">
+generator.Emit(OpCodes.Ldstr, "Hello world")
+generator.Emit(OpCodes.Call, typeof&lt;Console&gt;.GetMethod("WriteLine", [| typeof&lt;obj&gt; |]))
+generator.Emit(OpCodes.Ret)
+</pre>
+<p>For the purposes of this blog post, we're going to simplify the code generation even further, and use the <code>DynamicMethod</code> class, which allows us to generate a stream of IL opcodes in memory, then execute them, without having to write a full assembly file to disk. (The code on GitHub demonstrates both approaches -- see <a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/Compiler.fs">Compiler.fs</a> for the code that writes an assembly file.)</p>
+<p>We're going to write the compile function that I talked about in the last post:</p>
+<pre class="brush: fsharp">
+let rec compile
+    (generator : ILGenerator)
+    (defineMethod : string -&gt; Type -&gt; Type list -&gt; #MethodInfo * ILGenerator)
+    (env : Map&lt;string, LispVal&gt;)
+    (value : LispVal) 
+    : (Map&lt;string, LispVal&gt;)
+</pre>
+<p>We'll have given to us: an <code>ILGenerator</code> instance; a function that creates a new method and returns an <code>ILGenerator</code> for that method; a map containing any variables and functions declared earlier on in this function; and a <code>LispVal</code> representing the line of code we're being asked to generate IL for. We'll return a map containing all of the variables and functions originally passed to us, plus any new variables or functions we might have declared in this line of code.</p>
+<p class="alt"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/CodeGenerator.fs">CodeGenerator.fs</a></p>
+<pre class="brush: fsharp">
+let rec compile (generator : ILGenerator) defineMethod =
+</pre>
+<div class="notice">
+  <h2 class="alt">Detour: Currying and partial application</h2>
+
+  <p>First of all, notice that the F# declaration of the <code>compile</code> function looks nothing like the function interface I just talked about. That's because we're going to define <code>compile</code> as a function that accepts two arguments and returns another function that accepts the next one, which returns yet another function that accepts the last argument and returns a value. In fact, all F# functions work this way, as functions that accept one argument and return another function that accepts the next. From the point of view of the caller, it's not possible to tell the difference between a function written like this:</p>
+  <pre class="brush: fsharp">
+<code>let f = 
+    fun a -&gt;
+        fun b -&gt;
+            fun c -&gt;
+                fun d -&gt; 
+                    printfn "called function f with %d %d %d %d" a b c d
+</code>
+</pre>
+
+  <p>and one like this:</p>
+  <pre class="brush: fsharp">
+let f a b c d = 
+    printfn "called function f with %d %d %d %d" a b c d
+</pre>
+
+  <p>In the first example, the programmer defines <code>f</code> as a series of functions in which you pass a value to one function in order to obtain the next: in this case, the programmer is said to be <a href="http://en.wikipedia.org/wiki/Currying">currying</a>. In the second example, the programmer states all of <code>f</code>'s parameters on one line, yet we can still call <code>f</code> piece by piece ("partially apply") if we want to: the F# language performs the currying automatically.</p>
+</div>
+<pre class="brush: fsharp">
+let rec compile' env =
+</pre>
+<p>So far we've consumed the <code>generator</code>, <code>defineMethod</code> and <code>env</code> parameters. Now we're writing a <code>compile'</code> function, which we're going to use not only when the <code>compile</code> function itself is called, but also recursively from within the <code>compile'</code> function. We do this because we want to be able to generate IL using the same <code>generator</code> and <code>defineMethod</code> parameters originally passed to us, but with different values for <code>env</code> and <code>value</code>.</p>
+<pre class="brush: fsharp">
+function
+| ArgRef index -&gt; 
+    generator.Emit(OpCodes.Ldarg, index)
+    env
+</pre>
+<p><strong class="alt">ArgRef:</strong> The <code>compile'</code> function immediately performs pattern matching against its last argument: the F# <code>function</code> keyword acts like <code>fun</code> and <code>match</code> combined. We'll handle each of the <code>LispVal</code> cases in alphabetical order: first is <code>ArgRef</code>, which is a value we'll find within a function's environment. There's one of these for each of the function's parameters, and since IL refers to its arguments using numerical indices, so will we. We use the <em>ldarg</em> opcode to fetch the <code>index</code>'th argument and push it onto the VM stack. We don't change the function's environment, so we return <code>env</code> unchanged.</p>
+<pre class="brush: fsharp">
+| Atom a -&gt; 
+    a |&gt; ident env |&gt; compile' env
+</pre>
+<p><strong class="alt">Atom:</strong> An atom is a string that refers to a variable or function in the function's environment. We deal with these by calling <code>ident</code> to look up the string in the current environment, then recursively calling <code>compile'</code> to generate the IL for whatever <code>ident</code> finds. In practice this case is only used for variable and function argument lookups; function names are also atoms, but the only thing we do to functions is call them, and we call functions lower down when we encounter an atom within <code>List</code> node. (In a later version we might want to treat function names that appear outside of function calls like C# does, and turn them into delegates.)</p>
+<pre class="brush: fsharp">
+| Bool b -&gt; 
+    let opCode = 
+        if b 
+        then OpCodes.Ldc_I4_1 
+        else OpCodes.Ldc_I4_0
+    generator.Emit opCode
+    env
+</pre>
+<p><strong class="alt">Bool:</strong> Bools are the first of our constants to appear. IL represents bools as integers, and it has built-in opcodes whose purpose is to load an integer between 0 and 8 onto the stack, so we generate either <code>ldc.i4.1</code> for true or <code>ldc.i4.0</code> for false here. (Our handling of true and false is completely wrong from a Lisp point of view, which uses <code>nil</code> for false and anything else for true.)</p>
+<pre class="brush: fsharp">
+let emitIf opCode env thenValue elseValue =
+    let thenLabel = generator.DefineLabel()
+    let endLabel = generator.DefineLabel()
+    generator.Emit(opCode, thenLabel)
+    elseValue |&gt; compile' env |&gt; ignore
+    generator.Emit(OpCodes.Br, endLabel)
+    generator.MarkLabel thenLabel
+    thenValue |&gt; compile' env |&gt; ignore
+    generator.MarkLabel endLabel
+
+| IfPrimitive (ListPrimitive (Equal, [ a; b ]), thenValue, elseValue) -&gt;
+    let env' = a |&gt; compile' env
+    let env'' = b |&gt; compile' env'
+    emitIf OpCodes.Beq env'' thenValue elseValue
+    env''
+
+| IfPrimitive (testValue, thenValue, elseValue) -&gt;
+    let env' = testValue |&gt; compile' env
+    emitIf OpCodes.Brtrue env' thenValue elseValue
+    env'
+</pre>
+<p><strong class="alt">IfPrimitive:</strong> The built-in <code>(if test then else)</code> form. There's a special case for <code>(if (= a b) then else)</code>, because IL has its own combined branch-on-equal opcode, <em>beq</em>. If we defined more built-in comparison forms besides <code>Equal</code>, we'd have more special cases here for the other opcodes.</p>
+<pre class="brush: fsharp">
+| LambdaDef _ -&gt; 
+    raise
+        &lt;| new NotImplementedException("didn't expect lambda outside variable")
+
+| LambdaRef _ -&gt; 
+    raise &lt;| Compiler("can't compile lambda - try invoking it instead")
+</pre>
+<p><strong class="alt">LambdaDef, LambdaRef:</strong> Here we state two limitations on functions: the first happens if we try to use the <code>(lambda)</code> form outside of a variable declaration, and the second occurs if we try to use a function name outside of a function call, which I mentioned above. In a future version we might want to turn these into .NET delegates, although at the moment we have no way of specifying the delegate type (in fact, we have no way to instantiate instances of .NET objects at all).</p>
+<pre class="brush: fsharp">
+| List (Atom a :: args) -&gt;
+    match lambdaIdent args env a with
+    | LambdaRef (methodInfo, isParamArray, parameterTypes) -&gt; 
+</pre>
+<p><strong class="alt">List:</strong> Here's where we generate .NET method calls, which in Lisp appear as a list, with the function name (an atom) appearing first, followed by the function's arguments, if any. We start by looking up the function name in the environment and expecting it to resolve to a <code>LambdaRef</code>. I talked about the <code>lambdaIdent</code> function in the last post, and it is this function that picks the right method overload given a set of arguments.</p>
+<pre class="brush: fsharp">
+        let emitBoxed (expectedType : #Type) env x =
+            let env' = compile' env x
+            match typeOf env x with
+            | a when not expectedType.IsValueType &amp;&amp; a.IsValueType -&gt; 
+                generator.Emit(OpCodes.Box, a)
+
+            | _ -&gt;
+                ()
+
+            env'
+</pre>
+<p>A helper function to automatically <a href="http://en.wikipedia.org/wiki/Boxing_(computer_science)">box</a> instances of value types when needed, so that, for instance, we can pass ints to <code>Console.WriteLine</code>. Note that we need to annotate the F# function signature: <code>expectedType : #Type</code> denotes that <code>expectedType</code> is <code>Type</code>, or one of <code>Type</code>'s subclasses. We do this in order to access its <code>IsValueType</code> property.</p>
+<pre class="brush: fsharp">
+        let rec emitArgs (parameterTypes : #Type list) env args =
+            match args, parameterTypes with
+            | arg :: otherArgs, [ parameterType ] when isParamArray -&gt;
+                let elementType = parameterType.GetElementType()
+
+                let rec emitArrayInit env position =
+                    function
+                    | value :: values -&gt;
+                        generator.Emit(OpCodes.Dup)
+                        generator.Emit(OpCodes.Ldc_I4, int position)
+                        let env' = emitBoxed elementType env value
+                        generator.Emit(OpCodes.Stelem, elementType)
+                        emitArrayInit env' (position + 1) values
+
+                    | [ ] -&gt; 
+                        env
+
+                generator.Emit(OpCodes.Ldc_I4, List.length args)
+                generator.Emit(OpCodes.Newarr, elementType)
+                emitArrayInit env 0 args
+
+            | arg :: otherArgs, parameterType :: otherParameterTypes -&gt;
+                emitArgs otherParameterTypes (emitBoxed parameterType env arg) otherArgs
+
+            | [ ], [ ] -&gt; 
+                env
+
+            | _ :: _, [ ] -&gt; 
+                raise &lt;| new InvalidOperationException(sprintf "got %d too many args" &lt;| List.length args)
+
+            | [ ], _ :: _ -&gt; 
+                raise &lt;| new InvalidOperationException(sprintf "got %d too few args" &lt;| List.length parameterTypes)
+
+        let env' = args |&gt; emitArgs parameterTypes env
+        generator.Emit(OpCodes.Call, methodInfo)
+        env'
+</pre>
+<p>The <code>emitArgs</code> helper function emits the IL to put the function's arguments on the stack. For functions that don't take a variable number of arguments we can do this by calling <code>compile'</code> on each node, since <code>compile'</code> leaves the node's value on the VM stack. Calling variable argument functions (again, such as <code>Console.WriteLine</code>) is slightly more intricate, since the last parameter is an array. We use the <em>newarr</em> opcode to instantiate the array, then <em>stelem</em> in a loop to insert arguments into the array one by one.</p>
+<p>Since we only deal with static functions at the moment (whether they're .NET methods or our own lambdas) it's safe to use the <em>call</em> opcode in all circumstances. If we were calling instance methods we'd need to be able to call virtual methods using <em>callvirt</em>, and we'd need to automatically box value types when calling interface methods (such as <code>4.CompareTo(5)</code>) and methods defined on <code>System.Object</code> (such as <code>4.ToString()</code>). By limiting ourselves to static methods we've avoided these details.</p>
+<pre class="brush: fsharp">
+    | v -&gt; raise 
+        &lt;| new NotImplementedException(sprintf "can't invoke variable %A" v)
+
+| List (fn :: args) -&gt; 
+    raise &lt;| new NotImplementedException(sprintf "can't invoke value %A" fn)
+
+| List [ ] -&gt; 
+    raise &lt;| Compiler("can't invoke empty list")
+</pre>
+<p>Because we don't know about delegates, we can't call anything other than real functions.</p>
+<pre class="brush: fsharp">
+| ListPrimitive (op, args) -&gt; 
+    match args with
+    | arg :: otherArgs -&gt;
+        let opCode = 
+            match op with
+            | Add -&gt; OpCodes.Add
+            | Subtract -&gt; OpCodes.Sub
+            | Multiply -&gt; OpCodes.Mul
+            | Divide -&gt; OpCodes.Div
+            | Equal -&gt; OpCodes.Ceq
+
+        let coerceToInt env x = 
+            let env' = compile' env x
+            match typeOf env x with
+            | t when t = typeof&lt;obj&gt; -&gt; generator.Emit(OpCodes.Call, typeof&lt;Convert&gt;.GetMethod("ToInt32", [| typeof&lt;obj&gt; |]))
+            | t when t = typeof&lt;int&gt; -&gt; ()
+            | t -&gt; raise &lt;| new NotImplementedException("expected int, got " + t.Name)
+            env'
+
+        let emitBinaryOp env arg =
+            let env' = coerceToInt env arg
+            generator.Emit opCode
+            env'
+
+        let env' = coerceToInt env arg
+        otherArgs |&gt; List.fold emitBinaryOp env'
+
+    | l -&gt; 
+        raise &lt;| Compiler(sprintf "cannot compile list %A" l)
+</pre>
+<p><strong class="alt">ListPrimitive:</strong> The built-in forms for arithmetic and equality are defined as <code>ListPrimitive</code> nodes, and the IL for each of these is fairly similar. Note that our arithmetic operators can handle any number of arguments, and we handle this by pushing the first value onto the VM stack, then using F#'s <code>fold</code> function to apply one of IL's binary operators to each pair. We use <code>Convert.ToInt32</code> to coerce any strange values to integers. (Note that <code>List.fold</code> is new in the F# May 2009 CTP -- previously this function was called <code>List.fold_left</code>, to match OCaml.)</p>
+<pre class="brush: fsharp">
+| Number n -&gt; 
+    generator.Emit(OpCodes.Ldc_I4, n)
+    env
+
+| String s -&gt; 
+    generator.Emit(OpCodes.Ldstr, s)
+    env
+</pre>
+<p><strong class="alt">Number, String:</strong> Another couple of constant types: all numbers are integers, and we use the <em>ldc.i4</em> opcode to push them onto the stack. We saw <em>ldstr</em> in the hello world example at the top of this post.</p>
+<pre class="brush: fsharp">
+| VariableDef (name, value) -&gt;
+    match value with
+    | LambdaDef (paramNames, body) -&gt;
+        let (lambdaInfo, lambdaGenerator) = 
+            defineMethod
+                name
+                (typeOf env body)
+                (List.replicate (List.length paramNames) (typeof&lt;int&gt;))
+
+        let envWithLambda = 
+            env 
+            |&gt; (LambdaRef (lambdaInfo, false, (List.map (fun _ -&gt; typeof&lt;int&gt;) paramNames)) 
+                |&gt; Map.add name)
+
+        let (envWithLambdaArgs, _) = 
+            paramNames 
+            |&gt; ((envWithLambda, 0) 
+                |&gt; List.fold (fun (env, index) name -&gt; (Map.add name (ArgRef index) env, index + 1)))
+
+        body |&gt; compile lambdaGenerator defineMethod envWithLambdaArgs |&gt; ignore
+        lambdaGenerator.Emit(OpCodes.Ret)
+        envWithLambda
+
+    | _ -&gt;
+        let local = generator.DeclareLocal(typeOf env value)
+        let envWithVariable = Map.add name (VariableRef local) env
+        compile' envWithVariable value |&gt; ignore
+        generator.Emit(OpCodes.Stloc, local)
+        envWithVariable
+</pre>
+<p><strong class="alt">VariableDef:</strong> We use <code>VariableDef</code> nodes to declare both functions and variables. There are in fact three possibilities here:</p>
+<ol>
+  <li><code>(define func (arg1 arg2) body)</code></li>
+
+  <li><code>(define func (lambda (arg1 arg2) body))</code></li>
+
+  <li><code>(define variable value)</code></li>
+</ol>
+<p>The first two cases are treated the same (in fact, the first case is transformed to the second by <code>insertPrimitives</code>, which we saw in the last post), and both of them define a new named function:</p>
+<ol>
+  <li>We call <code>defineMethod</code> to obtain a <code>MethodInfo</code> and an <code>ILGenerator</code> for a new method</li>
+
+  <li>So that the function can call itself recursively, we insert the function into the environment before we start generating the function's IL. This changed environment is the one that feeds into the next line of code in the function where the declaration appears.</li>
+
+  <li>We set up a new environment based on the declaring function. This new environment gains a set of <code>ArgRef</code> values that represent the function's arguments.</li>
+
+  <li>We call <code>compile</code> recursively, with the new <code>ILGenerator</code> that <code>defineMethod</code> gave us</li>
+</ol>
+<div class="notice">
+  <h2 class="alt">Detour: Why do we keep a list of parameters if we've got a MethodInfo?</h2>
+
+  <p>I had originally wanted to represent both our own functions and .NET methods with a .NET <code>MethodInfo</code> object: we need to know the types of the function's parameters in order to call it, and I assumed we could call <code>MethodInfo.GetParameters</code> to obtain them. Unfortunately we're only allowed to call GetParameters on real methods, not <code>DynamicMethod</code> or <code>MethodBuilder</code>, so I had to track the parameter types explicitly.</p>
+</div>
+<p>To declare a variable, we first use <code>ILGenerator.DeclareLocal</code> to allocate a new IL local variable, then use the <em>stloc</em> opcode to assign a value to it. As with function declarations, we change the function's environment, and return the changed environment so that it can be fed into the next line of code.</p>
+<pre class="brush: fsharp">
+| VariableRef local -&gt; 
+    generator.Emit(OpCodes.Ldloc, local)
+    env
+</pre>
+<p><strong class="alt">VariableRef:</strong> Last in our alphabetical list of expression tree nodes is <code>VariableRef</code>, which is the node we inserted into the environment just a moment ago to represent local variables. IL gives us the <em>ldloc</em> opcode, which fetches the value from a local variable and places it into the VM stack.</p>
+<pre class="brush: fsharp">
+compile'
+</pre>
+<p>In the last line of code, we're outside of the <code>compile'</code> definition and back in <code>compile</code>. Recall that we declared <code>compile</code> as a function that accepts two arguments and returns a function that accepts two more: here we're returning that function.</p>
+<p>To finish up, let's compile the Lisp code I wrote in the last post, which generates most of the features in our code generator:</p>
+<pre class="brush: plain">
+(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))
+(Console.WriteLine "6! = {0}" (fact 6))
+(Console.WriteLine "What is your name?")
+(Console.WriteLine "Hello, {0}" (Console.ReadLine))
+</pre>
+<p class="alt">IL disassembly</p>
+<pre class="brush: plain">
+.class public auto ansi sealed Program
+       extends [mscorlib]System.Object
+{
+  .method public static void  Main() cil managed
+  {
+    // (Console.WriteLine "6! = {0}" (fact 6))
+    IL_0000:  ldstr      "6! = {0}"
+    IL_0005:  ldc.i4     0x6
+    IL_000a:  call       int32 Program::fact(int32)
+    IL_000f:  box        [mscorlib]System.Int32
+    IL_0014:  call       void [mscorlib]System.Console::WriteLine(string, object)
+
+    // (Console.WriteLine "What is your name?")
+    IL_0019:  ldstr      "What is your name\?"
+    IL_001e:  call       void [mscorlib]System.Console::WriteLine(object)
+
+    // (Console.WriteLine "Hello, {0}" (Console.ReadLine))
+    IL_0023:  ldstr      "Hello, {0}"
+    IL_0028:  call       string [mscorlib]System.Console::ReadLine()
+    IL_002d:  call       void [mscorlib]System.Console::WriteLine(string, object)
+    IL_0032:  ret
+  }
+
+  .method private static int32  fact(int32 A_0) cil managed
+  {
+    // (if (= n 0) ...
+    IL_0000:  ldarg      A_0
+    IL_0004:  nop
+    IL_0005:  nop
+    IL_0006:  ldc.i4     0x0
+    IL_000b:  beq        IL_002d
+
+    // else: (* n (fact (- n 1)))
+    IL_0010:  ldarg      A_0
+    IL_0014:  nop
+    IL_0015:  nop
+    IL_0016:  ldarg      A_0
+    IL_001a:  nop
+    IL_001b:  nop
+    IL_001c:  ldc.i4     0x1
+    IL_0021:  sub
+    IL_0022:  call       int32 Program::fact(int32)
+    IL_0027:  mul
+    IL_0028:  br         IL_0032
+
+    // then: 1
+    IL_002d:  ldc.i4     0x1
+    IL_0032:  ret
+  }
+}
+</pre>
+<p>And just for fun, using Reflector to disassemble into C#:</p>
+<p class="alt">C# decompilation</p>
+<pre class="brush: csharp">
+public sealed class Program
+{
+    private static int fact(int num1)
+    {
+        return ((num1 == 0) ? 1 : (num1 * fact(num1 - 1)));
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine("6! = {0}", fact(6));
+        Console.WriteLine("What is your name?");
+        Console.WriteLine("Hello, {0}", Console.ReadLine());
+    }
+}
+</pre>
+

@@ -1,0 +1,41 @@
+---
+title: "Lisp compiler in F#: What's next?"
+date: "2009/06/09 23:12:28"
+updated: "2009/06/09 23:12:28"
+categories: 
+tags: 
+---
+<p>This is part 5 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a>, <a href="/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html">Expression trees and .NET methods</a>, <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html">IL generation</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p>This post marks the end of the first series of Lisp compiler posts, since we're at the point where the code does something useful while still being compact enough to explain in a few blog posts. In the future it should make an interesting test bed for learning about compiler techniques, which I hope to cover here.</p>
+<p>Here's some of the ideas I'd like to try out:</p>
+<ul>
+  <li>Implement all the Lisp functionality from Jonathan Tang's <a href="http://halogen.note.amherst.edu/~jdtang/scheme_in_48/tutorial/overview.html">Write Yourself a Scheme in 48 Hours</a> tutorial. Jonathan explains how to implement a Scheme interpreter in Haskell, which is a similar goal to my Scheme-like compiler in F#. (It was actually his tutorial that first gave me the idea of doing it in F#.)</li>
+
+  <li>.NET integration:
+
+    <ul>
+      <li>Ability to create new .NET objects, call instance methods, and access properties and events. Currently we're restricted to static methods.</li>
+
+      <li>Ability to define your own .NET classes. One thing I'd like to be able to do is implement the NUnit tests for this project directly in Lisp, which means the compiler needs to be able to generate instance methods with custom attributes applied.</li>
+
+      <li>A full System.CodeDom.Compiler implementation: Lisp on ASP.NET anyone?</li>
+    </ul>
+  </li>
+
+  <li>Optimisations:
+
+    <ul>
+      <li><p>Tail call optimisation: replace the <em>call</em>, <em>ret</em> sequence with <em>tail.call</em>, <em>ret</em>. This is less an optmisation and more a necessity, since recursion is currently the only way to implement looping, and we need tail calls to avoid overflowing the stack. The <em>tail</em> opcode prefix is recognised directly by the CLR: another approach would be for the compiler to implement a recursive function as a <code>while</code> loop. Tail calling on .NET is a moderately interesting topic in its own right: see the links from <a href="http://stackoverflow.com/questions/491376/why-doesnt-net-c-eliminate-tail-recursion">this Stack Overflow question</a> to get an idea of the issues involved.</p>
+<p><strong class="alt">Edit:</strong> as <a href="http://www.paulhollingsworth.com/">Paul</a> points out, the trick is to optimise all tail calls, not just tail recursion. It's easy to come up with a pair of functions that call each other: if we just looked for recursive calls back to the same function, we'd blow up the stack in this situation. Luckily for us, the IL <em>tail</em> prefix is valid on any call, as long as it comes just before a <em>ret</em>, so we don't need to be too clever.</p></li>
+
+      <li>Arithmetic optimisations: something as simple as simplifying constant expressions at compile time</li>
+    </ul>
+  </li>
+
+  <li>A command line compiler, with parameters similar to those of <em>csc.exe</em> or <em>fsc.exe</em></li>
+
+  <li>Don't generate IL directly to <code>ILGenerator</code>; assemble F# data structures representing the IL, so that we can apply IL optimisations using standard F# constructs such as pattern matching</li>
+
+  <li>Implement flow control within the compiler on top of a flow control graph data structure, along the lines of <a href="http://en.wikipedia.org/wiki/Basic_block">basic blocks</a>. This will make optimisations of program flow easier to implement.</li>
+</ul>
+<p>Let me know if you've found this series useful so far, or if you have any corrections or suggestions on what I've been writing.</p>

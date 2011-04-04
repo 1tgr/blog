@@ -1,0 +1,19 @@
+---
+title: .NET package manager feedback
+date: "2010/04/19 18:19:54"
+updated: "2010/04/19 18:19:54"
+categories: 
+tags: 
+---
+I don't seem to be the first one to be having problems keeping track of his .NET binaries:
+
+ * [OJ offered to build one](http://twitter.com/TheColonial/status/12416813543) :)
+ * John Mandia poined me towards several Java-based tools: [Artifactory](http://www.jfrog.org/products.php), [Antill Pro](http://www.anthillpro.com/html/default.html) and [Nexus](http://nexus.sonatype.org/). Of these, Artifactory and Nexus are open source. Of course, Apache [Maven](http://maven.apache.org/) is a fairly well-known Java packaging tool.
+ * [James Webster showed me](http://twitter.com/jimmcslim/status/12417586016) the [Visual Studio Dependencies Manager](http://vsdm.codeplex.com/Wikipage), an addin for Visual Studio 2003.
+
+Finally, [Terry Spitz](http://www.partario.com/blog/2010/04/can-i-have-a-net-package-manager.html#comment-39) had some fairly enthusiastic feedback:
+> hell yes! we've got various vbscripts to do this. shouldn't it be 'easy' in say MSI (if too heavyweight), or powershell. additional points if it can handle multi-level caching, i.e. cross-region or internet code is cached on a team share as well as locally.
+
+Windows Installer occurred to me when I started thinking about this. However, I think such a tool should be limited to deploying assemblies to a particular project's source tree -- deploying them via MSIs suggests putting them into a central location on each machine, and I predict that individual projects will start interfering with each other this way, particularly on a build server. On the other hand, Windows Installer does have the concept of [merge modules](http://en.wikipedia.org/wiki/Merge_module): mini MSIs for software components that get merged into the final application installer.
+
+Terry's multi-level caching idea is nice. There should definitely be local team and Internet repositories. Additionally, geographically distributed teams probably want local caches to keep overhead to a minimum. And I noticed that my Amazon-based web server cleverly goes to a special Ubuntu package repository hosted on S3, which keeps things quick and hopefully reduces my bandwidth costs.

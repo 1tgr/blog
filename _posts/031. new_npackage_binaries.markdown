@@ -1,0 +1,18 @@
+---
+title: New NPackage binaries
+date: "2010/05/16 18:57:39"
+updated: "2010/05/16 18:57:39"
+categories: 
+tags: 
+---
+I've [shaved two yaks](http://sethgodin.typepad.com/seths_blog/2005/03/dont_shave_that.html) this weekend:
+
+ * Ported the NPackage `install` command to F#. There shouldn't be any visible change in the application: rather, F# lets me write more succinct code for handling HTTP and package dependencies. (Specifically, I was able to replace a lot of my boilerplace C# code with a [computation workflow](http://msdn.microsoft.com/en-us/library/dd233182.aspx) that takes care of deciding which files need to be downloaded again and which ones can be left alone.)
+
+ * Set up an instance of [TeamCity](http://www.jetbrains.com/teamcity/) to take the source code from GitHub and build binaries for me. This isn't a version 1.0 release yet, but you're welcome to download the binaries and help me test them.
+
+**[Download the most recent NPackage binaries](http://build.partario.com/guestAuth/repository/download/bt2/.lastSuccessful/NPackage.zip)**
+
+PS last week I promised I'd implement package dependencies. I haven't done that yet.
+
+PPS here's another .NET packaging system to look out for: [Sebastien Lambla's OpenWrap](http://strangelights.com/blog/archive/2010/05/16/1661.aspx)

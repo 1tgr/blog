@@ -28,7 +28,7 @@ logger = logging.getLogger("blogofile.config")
 #  If you're hosting a blogofile powered site as a subdirectory of a larger
 #  non-blogofile site, then you would set the site_url to the full URL
 #  including that subdirectory: "http://www.yoursite.com/path/to/blogofile-dir"
-site.url         = "http://www.blogofile.com"
+site.url         = "http://www.partario.com"
 
 #### Blog Settings ####
 blog = controllers.blog
@@ -43,18 +43,18 @@ blog.enabled = True
 #  and you set blog_path to "/blog" your full blog URL would be
 #  "http://www.yoursite.com/~ryan/blog"
 #  Leave blank "" to set to the root of site_url
-blog.path = "/blog"
+blog.path = "/blog/"
 
 ## blog_name -- Your Blog's name.
 # This is used repeatedly in default blog templates
-blog.name        = "Blogofile"
+blog.name        = "Tim Robinson"
 
 ## blog_description -- A short one line description of the blog
 # used in the RSS/Atom feeds.
 blog.description = "A static blog engine/compiler"
 
 ## blog_timezone -- the timezone that you normally write your blog posts from
-blog.timezone    = "US/Eastern"
+blog.timezone    = "Europe/London"
 
 ## blog_posts_per_page -- Blog posts per page
 blog.posts_per_page = 5
@@ -69,14 +69,14 @@ blog.posts_per_page = 5
 # :filename           -> article's filename without suffix
 blog.auto_permalink.enabled = True
 # This is relative to site_url
-blog.auto_permalink.path    = "/blog/:year/:month/:day/:title"
+blog.auto_permalink.path    = "/blog/:year/:month/:day/:filename.html"
 
 ######################################################################
 # Intermediate Settings
 ######################################################################
 #### Disqus.com comment integration ####
 blog.disqus.enabled = True
-blog.disqus.name    = "blogofile"
+blog.disqus.name    = "tim_g_robinson"
 
 ### Syntax highlighter ###
 # You can change the style to any builtin Pygments style

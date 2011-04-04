@@ -1,0 +1,21 @@
+---
+title: First post
+date: "2009/04/15 20:33:29"
+updated: "2009/04/15 20:33:29"
+categories: 
+tags: 
+---
+I wanted to avoid both the "hello world" first post, and generally blogging about blogging. However, I was moderately impressed about how easy this was to set up, seeing as I'm hosting this site on my own PC:
+
+ - Virtual server (Microsoft Virtual Server), since I didn't want to have connections coming directly onto the PC that has all my important files
+ - A pretty minimal server installation of Ubuntu 8.10
+ - A couple of Apache virtual hosts
+ - Movable Type
+
+Ubuntu was surprisingly easy to set up: my last successful Linux experience was probably Slackware in 1999 or so. I haven't needed to try the desktop side of things yet, but Ubuntu has a level of polish similar to OS X.
+
+One snag in the installation was that the Ubuntu console appeared corrupted under MSVS's web-based remote control, so that I could only see the first few lines. I didn't feel like digging too far into the frame buffer configuration, so I set up [ssh](https://help.ubuntu.com/8.10/serverguide/C/openssh-server.html) and did the rest of the installation remotely from OS X's Terminal.
+
+[Active Directory integration](https://help.ubuntu.com/8.10/serverguide/C/samba-ad-integration.html) was equally easy: installing Likewise Open allowed me to start logging onto my new virtual Linux server using my Windows user name and password. (I have the same setup on the Mac: the same user name and password logs into email, file shares, and OS X itself.)
+
+The Apache and Movable Type installation came courtesy of a Google search on ["ubuntu movable type"](http://codeintensity.blogspot.com/2008/04/movable-type-4-setup-on-ubuntu.html) and went through without a hitch. In the past I've have run things like this on Windows through Cygwin, and have spent most of the time hacking mount points and \ vs. /. Deploying on Linux is clearly what I was supposed to be doing.

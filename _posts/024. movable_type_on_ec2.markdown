@@ -1,0 +1,32 @@
+---
+title: Movable Type on EC2
+date: "2010/04/18 20:00:00"
+updated: "2010/04/18 20:00:00"
+categories: 
+tags: 
+---
+I'm a big fan of virtual servers and I've always run this web site from one. Until recently I had it on a [VMware instance on my home PC](http://www.partario.com/blog/2009/04/first-post.html), although [my recent experience with Amazon EC2](http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html) and a couple of large traffic spikes prompted me to move it.
+
+In the end the process turned out to be pretty easy:
+
+ 1. Back up to Amazon S3 using [duplicity](http://duplicity.nongnu.org/):
+  * MySQL dump: `mysqldump --all-databases`
+  * /etc/apache2
+  * /var/www
+ 2. Start an EC2 small instance running AMI Ubuntu 9.04 (ami-ccf615a5)
+ 3. Restore from Amazon S3
+  * `apt-get -y install apache2 duplicity libapache2-mod-perl2 libdbd-mysql-perl libdbi-perl mysql-server perlmagick python-boto`
+  * Restore MySQL dump, /etc/apache2 and /var/www using duplicity
+  * Run MySQL script against the local instance
+ 4. Start Apache. Check whether the static HTML pages and Movable Type's admin interface work.
+ 5. Assign an Amazon elastic IP address to the EC2 instance. This gives me a static IP address that I can refer to from DNS.
+ 6. Remap the DNS alias (an A record and a CNAME record) via my ISP's web site
+ 7. Done!
+
+I'm happy with the changes so far:
+
+ * Performance has been fine: although publishing the site now takes 30 seconds not 15, I'm getting much better response times and bandwidth
+ * I'm paying to run an EC2 instance full time whereas before I was just paying for home power bills
+ * I'm not going to get shot by my ISP next time one of my posts appears on Reddit
+
+The fact that I was taking daily backups made the move risk-free. It took a couple of attempts to get a working site on the EC2 server, but I was able to start a fresh instance and restore from backup each time. I also know that, if the site does fall over in future, restoring from backup will take a few minutes and I'll lose one day of data at most.

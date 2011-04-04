@@ -1,0 +1,24 @@
+---
+title: Obscure exception handling facts
+date: "2009/07/28 20:22:43"
+updated: "2009/07/28 20:22:43"
+categories: 
+tags: 
+---
+<span class="alt">(The second in what seems to be a day of obscure .NET facts)</span>
+
+While looking at some C++/CLI code in Reflector today at work, we encountered the `try ... fault` construct.
+
+### What's a `fault` block? ###
+It's like a `finally` block, but it's only entered in the event of an exception.
+
+### So it's like a `catch` block, then? ###
+Not exactly: 
+
+* `fault` blocks don't have filters like `catch` blocks do
+* At the end of a `fault` block the exception is implicitly rethrown
+
+Supposedly the benefit of a `fault` block is performance: that `throw;` statement at the end of a `catch` block has the same overhead as any other `throw` statement, whereas `finally` and `fault` blocks incur no runtime overhead. The stack is not unwound when a `fault` block is entered: `fault` blocks won't appear in the exception stack trace.
+
+### Where do `fault` blocks show up? ###
+In the code the C++/CLI compiler emits in order to make sure that local variables have their destructors called in the event of an exception.

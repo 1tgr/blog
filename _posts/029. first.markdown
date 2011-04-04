@@ -1,0 +1,39 @@
+---
+title: First six NPackage packages
+date: "2010/05/03 15:49:34"
+updated: "2010/05/03 15:49:34"
+categories: 
+tags: 
+---
+[Browse the NPackage source on GitHub](http://github.com/timrobinson/NPackage)
+
+This weekend I've had a couple of productive sessions on NPackage and I'm pretty happy with how it's working out.
+
+I've set up package files on Amazon S3 for the following libraries:
+
+ * [log4net](http://np.partario.com/log4net-1.2.10/log4net.np)
+ * [Mono Cecil](http://np.partario.com/cecil-0.6/cecil.np)
+ * [NHibernate](http://np.partario.com/nhibernate-2.1.2/nhibernate.np)
+ * [NUnit](http://np.partario.com/nunit-2.5.5.10112/nunit.np)
+ * [Rhino Mocks](http://np.partario.com/rhino.mocks-3.6/rhino.mocks.np)
+ * [SharpZipLib](http://np.partario.com/sharpziplib-0.85.5/sharpziplib.np)
+
+These six packages test a few different scenarios:
+
+ * NUnit and SharpZipLib are needed to build NPackage itself
+ * Rhino Mocks is a good test because the download URL doesn't resemble the name of the file that gets downloaded; I had to write code to parse the HTTP Content-Disposition header to make sense of it
+ * Cecil is an example of a library that's distributed with the rest of Mono, which is supplied as a large .tar.gz archive (the other libraries on the list above are all .zip files)
+ * NHibernate is an example of a library that has its own dependencies, i.e. log4net
+
+Although NPackage is working nicely for its own development, I need to put in more work before the installation process is simple enough. Right now the [command to install NPackage's own dependencies](http://github.com/timrobinson/NPackage/blob/master/scripts/install) looks like this:
+
+<pre class="brush: plain">NPackage http://np.partario.com/nunit-2.5.5.10112/nunit.np \
+         http://np.partario.com/sharpziplib-0.85.5/sharpziplib.np</pre>
+
+I'd like to simplify it to this:
+
+<pre class="brush: plain">np install nunit sharpziplib</pre>
+
+To do this I'll need to handle dependencies properly. I expect I'll need to drop the approach of putting package descriptions in their own files: the client will need to contain enough intelligence to put together a dependency graph and install the right versions of the right packages. It will be easier to do this if the client can download a central package database list and make its decisions based on the descriptions within there.
+
+I envisage having local databases that can contain a few local packages and delegate the rest to the central list on the web. I'd also like the client to be self-contained enough to carry on working even if this central package server falls over: the client should cache the most recent version of the list and work from there.

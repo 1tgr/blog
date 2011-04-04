@@ -1,0 +1,17 @@
+---
+title: This week on NPackage
+date: "2010/05/09 20:19:43"
+updated: "2010/05/09 20:19:43"
+categories: 
+tags: 
+---
+[Browse the NPackage source on GitHub](http://github.com/timrobinson/NPackage)
+
+I implemented the local package database idea that I mentioned last weekend. Now the NPackage client downloads a [packages.js](http://np.partario.com/packages.js) file that describes every version of every package; now you don't have to specify full package file URLs with version numbers. I've also switched to [JSON](http://en.wikipedia.org/wiki/JSON) syntax for the package files, instead of using my hand-made Yaml-ish parser.
+
+I want to do at least two more things before putting togther an NPackage version 1.0 release:
+
+ * Packages should be able to depend on other packages. These dependencies should consist of a package name and, optionally, the range of version numbers that are acceptable. NPackage will pick the latest version of each package that satisfies all the version number constraints.
+ * Developers should be able to set up a local package repository that takes prececdence over the web site
+
+Hopefully I'll at least have dependencies working by next weekend.

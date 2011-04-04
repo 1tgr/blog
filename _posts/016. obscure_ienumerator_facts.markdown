@@ -1,0 +1,22 @@
+---
+title: Obscure IEnumerator facts
+date: "2009/07/28 19:06:26"
+updated: "2009/07/28 19:06:26"
+categories: 
+tags: 
+---
+Daniel Fortunov wrote about [an obscure use of duck typing in the C# spec for enumerators](http://www.danielfortunov.com/software/$daniel_fortunovs_adventures_in_software_development/2009/07/28/duck_typing):
+
+> Although it is common to implement [IEnumerable and IEnumerator] when creating an enumerable class, if you were to drop the interfaces but leave the implementation, your class would still be enumerable by foreach. Voila! Duck-typing!
+
+You can take advantage of this fact for a couple of performance tricks, as demonstrated by many of the standard collection classes in the base class library:
+
+* Declare your `IEnumerator<T>` implementation as a struct, not a class. This saves you a heap allocation when `MoveNext` is called.
+* Define a `Enumerator<T> GetEnumerator()` method on your collection class
+* Note that you're returning your own struct, not `IEnumerable<T>`; this avoids a boxing operation. You'll still need to explicitly implement `IEnumerator<T> GetEnumerator()`, for people who only have an `IEnumerable<T>` reference to your collection. These performance tricks don't apply when you're making calls through this interface.
+
+When somebody uses `foreach` over your collection, the compiler sees a series of `MoveNext` calls and accesses to the `Current` property, and it emits code to call these efficiently on your struct.
+
+What's more, the code in your struct's methods is a candidate for [inlining by the JIT compiler](http://blogs.msdn.com/davidnotario/archive/2004/11/01/250398.aspx). The segment of the `MoveNext` method of `System.Collections.Generic.List<T>+Enumerator` that can throw an exception is split into its own method, apparently for this reason.
+
+I don't claim any kind of definite performance benefits from using these techniques, but it does look like the language designers put some thought into making it possible to use `foreach` without incurring any overhead compared to some less elegant method.

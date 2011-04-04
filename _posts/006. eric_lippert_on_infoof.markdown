@@ -1,0 +1,14 @@
+---
+title: Eric Lippert on infoof()
+date: "2009/05/22 18:42:58"
+updated: "2009/05/22 18:42:58"
+categories: 
+tags: 
+---
+I previously mentioned some [hypothetical C# `fieldof` and `methodof` operators](http://www.partario.com/blog/2009/04/more-il-features-missing-from-c.html), which would obtain `FieldInfo` and `MethodInfo` objects, in the same way that `typeof` retrieves `Type` at runtime.
+
+Eric Lippert [explains the pros and cons of a combined `infoof` operator](http://blogs.msdn.com/ericlippert/archive/2009/05/21/in-foof-we-trust-a-dialogue.aspx), which mainly centre around how hard it would be to pick the right method overload each time.
+
+In the comments, [Jonathan Pryor](http://www.jprl.com/) points out my favourite replacement for `methodof`:
+
+> Fastest by far in my testing -- faster than string-based Reflection, in fact -- is Mike's "Poor's man infoof" using the Delegate.Method property.  This effectively bypasses most of the Reflection infrastructure (no Type.GetMember(), etc.), and is the closest we can get to IL member lookup resolution.

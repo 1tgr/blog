@@ -1,0 +1,97 @@
+---
+title: What's a control flow graph?
+date: "2009/07/26 12:49:27"
+updated: "2009/07/26 12:49:27"
+categories: 
+tags: 
+---
+I'd like to add tail call support to my [Lisp compiler](http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html). I can think of two approaches to tail recursion:
+
+* Use the .NET `tail.call` prefix
+    * Translate `call` followed by `ret` into `tail.call` followed by `ret`
+    * It's easier to spot this pattern if we put IL in our own data structure before emitting it
+    * Our own data structure needs to represent all the IL we use, including labels (for branching) and local variables
+    * The label data structure needs a way to represent the target of a branch
+    * <span class="alt">Note:</span> The `tail` prefix is a hint that the JIT compiler doesn't have to obey - [here's a good explanation of the limitations](http://blogs.msdn.com/clrcodegeneration/archive/2009/05/11/tail-call-improvements-in-net-framework-4.aspx)
+* Translate functions that call themselves into loops
+    * Our abstract syntax tree doesn't have a way to represent a loop
+    * As above, it needs an AST capable of representing branches
+    * The F# compiler does this; it's not able to rely on the `tail` prefix either
+    * Can we apply this to functions that call each other recursively? At compile time we might not spot co-recursive functions: F# only allows co-recursive functions if they use the `let ... and` syntax to define both functions in the same source file.
+
+The ability to represent loops, and control flow in general, seems to be important in your syntax tree. The [LLVM](http://llvm.org/) approach to this is the [basic block](http://en.wikipedia.org/wiki/Basic_block):
+
+* One entry point: no branching into the middle of the block
+* One exit point: always contains one branch instruction, at the end
+* Basic blocks can be connected to form a control flow graph: blocks are vertices, branch instructions are edges
+* Control flow graph is: directed (A branches to B); cyclic (A is allowed to branch to A - this is a loop)
+
+How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:
+
+<pre class="brush: fsharp">
+// An instruction can be a regular opcode, 
+//  or a branch to another basic block
+type Instruction = CallInstruction of MethodInfo * obj
+                 | Branch of BasicBlock
+                 
+// A basic block is a list of instructions
+and BasicBlock = BasicBlock of Instruction list
+</pre>
+
+We have to construct a list of instructions before constructing a basic block. But how do we represent the following?
+
+<pre class="brush: csharp">
+// C# pseudocode
+while (true)
+    Console.WriteLine("hello");
+</pre>
+
+<pre class="brush: fsharp">
+// F# abstract syntax tree for the above C#
+let instructions =
+    [
+        Call (writeLine, "hello");
+
+        // How can we branch to something we haven't constructed yet?
+        Branch ???
+    ]
+let program = BasicBlock instructions
+</pre>
+
+The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:
+
+<pre class="brush: fsharp">
+// F# abstract syntax tree with mutability - 
+//  note property assignment with &lt;-
+let program = new BasicBlock()
+let instructions =
+    [
+        Call (writeLine, "hello");
+        Branch program
+    ]
+
+program.Instructions &lt;- instructions
+</pre>
+
+LLVM does something similar with its C++ API:
+
+<pre class="brush: cpp">
+// LLVM equivalent in C++
+
+// 'bb' is a basic block within func_main
+BasicBlock* label_bb = BasicBlock::Create("bb", func_main, 0);
+
+// First instruction in bb: call puts("hello")
+CallInst::Create(func_puts, const_ptr_8, "", label_bb);
+
+// Second instruction in bb: branch back to bb
+BranchInst::Create(label_bb, label_bb);
+</pre>
+
+I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:
+
+* Structure the entire program as a graph of basic blocks linked by branch instructions
+* Abstract syntax trees can't do everything; instead, they appear as instructions within basic blocks
+* Construction of basic blocks must be separate from construction of the instructions within them, so that we can refer to a basic block from one of its own instructions
+* As it progresses through compiler passes, the program graph starts looking less functional and more imperative, until it eventually represents actual machine instructions
+* I should probably read [a compiler textbook](http://dragonbook.stanford.edu/)

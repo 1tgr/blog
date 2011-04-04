@@ -1,0 +1,18 @@
+---
+title: Can I have a .NET package manager?
+date: "2010/04/18 20:28:29"
+updated: "2010/04/18 20:28:29"
+categories: 
+tags: 
+---
+Insipired by source code packaging systems like [Haskell Cabal](http://www.haskell.org/cabal/), I'd like a standard tool for publishing shared code. I've seen teams take a variety of sub-optimal approaches, including: building everything from source each time; building binaries once then referencing them from a network share; and building binaries then checking them into source control.
+
+As a developer, what I'd like to be able to do is to declare the external libraries that my code depends on. I'd like it to work the same way for third-party code (say, NUnit and log4net) as for my own code (say, a library that gets re-used across several apps on the same team). There should be a standard format for publishing libraries, but there should be minimal effort involved in pulling one of these libraries into my code.
+
+What I propose is:
+
+ * **One or more central package sites.** One could be a public web site that maintains a list of open-source libraries; teams could host their own for internal libraries. These internal sites could just be directories in the file system or in source control. Package sites just contain enough information to find the right binaries or source code -- the binaries and sources themselves don't have to live at the same site.
+ * A **command line app that updates packages to the current version,** either by downloading binaries or by downloading and building source code. This would run on individual developers' PCs and on a continuous integration server.
+ * A **tool for keeping Visual Studio project references up to date.** I spend far too much time in the Project References dialog -- or editing .csproj files by hand -- to fix broken reference paths and libraries accidentally referenced from a developer's GAC.
+
+I don't know of anything that solves the problem as cleanly as in other languages. Am I missing something?
