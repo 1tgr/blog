@@ -2,7 +2,7 @@
 title: New NPackage binaries
 date: "2010/05/16 18:57:39"
 updated: "2010/05/16 18:57:39"
-permalink: /blog/2010/05/new_npackage_binaries.html
+permalink: /blog/2010/05/new-npackage-binaries.html
 ---
 I've [shaved two yaks](http://sethgodin.typepad.com/seths_blog/2005/03/dont_shave_that.html) this weekend:
 

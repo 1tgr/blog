@@ -2,7 +2,7 @@
 title: Can I have a .NET package manager?
 date: "2010/04/18 20:28:29"
 updated: "2010/04/18 20:28:29"
-permalink: /blog/2010/04/can_i_have_a_net_package_manager.html
+permalink: /blog/2010/04/can-i-have-a-net-package-manager.html
 ---
 Insipired by source code packaging systems like [Haskell Cabal](http://www.haskell.org/cabal/), I'd like a standard tool for publishing shared code. I've seen teams take a variety of sub-optimal approaches, including: building everything from source each time; building binaries once then referencing them from a network share; and building binaries then checking them into source control.
 

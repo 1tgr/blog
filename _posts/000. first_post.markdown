@@ -2,7 +2,7 @@
 title: First post
 date: "2009/04/15 20:33:29"
 updated: "2009/04/15 20:33:29"
-permalink: /blog/2009/04/first_post.html
+permalink: /blog/2009/04/first-post.html
 ---
 I wanted to avoid both the "hello world" first post, and generally blogging about blogging. However, I was moderately impressed about how easy this was to set up, seeing as I'm hosting this site on my own PC:
 

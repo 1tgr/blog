@@ -116,7 +116,12 @@ let Main _ =
                 header "updated" date
                 header "categories" (concat post.Categories)
                 header "tags" (concat post.Tags)
-                post.Date |> Option.iter (fun dt -> header "permalink" (Some (sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month baseName)))
+                
+                post.Date |> Option.iter (fun dt ->
+                    let permalink = sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month baseName
+                    let permalink = permalink.Replace("_", "-")
+                    header "permalink" (Some permalink))
+
                 fprintfn sw "---"
 
                 for line in List.rev post.Body do

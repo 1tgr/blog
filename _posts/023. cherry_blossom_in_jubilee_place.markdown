@@ -2,7 +2,7 @@
 title: Cherry Blossom in Jubilee Place
 date: "2010/04/12 09:07:35"
 updated: "2010/04/12 09:07:35"
-permalink: /blog/2010/04/cherry_blossom_in_jubilee_place.html
+permalink: /blog/2010/04/cherry-blossom-in-jubilee-place.html
 ---
 <a href="http://www.flickr.com/photos/tim-robinson/4511725083/" title="photo sharing"><img src="http://farm3.static.flickr.com/2168/4511725083_61ec2dc0c2_d.jpg" alt="" class="mt-image-none"/></a>
 <br />
