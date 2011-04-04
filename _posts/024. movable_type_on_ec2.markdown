@@ -2,8 +2,7 @@
 title: Movable Type on EC2
 date: "2010/04/18 20:00:00"
 updated: "2010/04/18 20:00:00"
-categories: 
-tags: 
+permalink: /blog/2010/04/movable_type_on_ec2.html
 ---
 I'm a big fan of virtual servers and I've always run this web site from one. Until recently I had it on a [VMware instance on my home PC](http://www.partario.com/blog/2009/04/first-post.html), although [my recent experience with Amazon EC2](http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html) and a couple of large traffic spikes prompted me to move it.
 

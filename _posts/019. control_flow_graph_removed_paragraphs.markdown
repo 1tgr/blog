@@ -2,8 +2,7 @@
 title: "Control flow graph: Removed paragraphs"
 date: "2009/08/03 10:18:30"
 updated: "2009/08/03 10:18:30"
-categories: 
-tags: 
+permalink: /blog/2009/08/control_flow_graph_removed_paragraphs.html
 ---
 Because `ILBranchOpCode` and `ILBlock` are defined in terms of each other, I had to put them into the same F# source file as follows:
 

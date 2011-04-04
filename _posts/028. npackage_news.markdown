@@ -2,8 +2,7 @@
 title: NPackage news
 date: "2010/04/27 13:00:00"
 updated: "2010/04/27 13:00:00"
-categories: 
-tags: 
+permalink: /blog/2010/04/npackage_news.html
 ---
 I've had some time over the last couple of evenings to do some coding, so I've made a start on my package manager. So far I'm calling it **NPackage**.
 

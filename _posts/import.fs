@@ -70,9 +70,15 @@ let Main _ =
             |> List.mapi (fun i post -> i, post)
         
         for i, post in posts do
-            match post.BaseName, post.Title with
-            | Some baseName, _
-            | None, Some baseName ->
+            match post.Body, post.BaseName, post.Title with
+            | _, None, None ->
+                ()
+
+            | l, _, _ when "" :: l |> List.forall (fun s -> s.Length = 0) ->
+                ()
+
+            | _, Some baseName, _
+            | _, None, Some baseName ->
                 let ext =
                     match post.Format with
                     | Html -> ".html"
@@ -99,12 +105,18 @@ let Main _ =
                     | Some dt -> Some (dt.ToString("yyyy/MM/dd HH:mm:ss"))
                     | None -> None
                 
+                let concat =
+                    function
+                    | [] -> None
+                    | list -> Some (String.concat "," list)
+
                 fprintfn sw "---"
                 header "title" post.Title
                 header "date" date
                 header "updated" date
-                header "categories" (Some (String.concat "," post.Categories))
-                header "tags" (Some (String.concat "," post.Tags))
+                header "categories" (concat post.Categories)
+                header "tags" (concat post.Tags)
+                post.Date |> Option.iter (fun dt -> header "permalink" (Some (sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month baseName)))
                 fprintfn sw "---"
 
                 for line in List.rev post.Body do
@@ -112,7 +124,6 @@ let Main _ =
 
                 printfn "Written %s" filename
 
-            | None, None -> ()
 
         0
     with ex ->

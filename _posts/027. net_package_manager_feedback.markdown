@@ -2,8 +2,7 @@
 title: .NET package manager feedback
 date: "2010/04/19 18:19:54"
 updated: "2010/04/19 18:19:54"
-categories: 
-tags: 
+permalink: /blog/2010/04/net_package_manager_feedback.html
 ---
 I don't seem to be the first one to be having problems keeping track of his .NET binaries:
 

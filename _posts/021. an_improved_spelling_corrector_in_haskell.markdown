@@ -2,8 +2,7 @@
 title: An improved spelling corrector in Haskell
 date: "2009/11/01 11:09:54"
 updated: "2009/11/01 11:09:54"
-categories: 
-tags: 
+permalink: /blog/2009/11/an_improved_spelling_corrector_in_haskell.html
 ---
 [My previous post](http://www.partario.com/blog/2009/10/a-spelling-corrector-in-haskell.html) came up on the [Haskell Reddit](http://www.reddit.com/r/haskell/comments/9zowr/a_spelling_corrector_in_haskell/) yesterday, and I got some great suggestions for improvements to the program, which [I've checked into GitHub](http://github.com/timrobinson/spell-correct/blob/master/Correct.hs).
 

@@ -2,8 +2,7 @@
 title: First six NPackage packages
 date: "2010/05/03 15:49:34"
 updated: "2010/05/03 15:49:34"
-categories: 
-tags: 
+permalink: /blog/2010/05/first.html
 ---
 [Browse the NPackage source on GitHub](http://github.com/timrobinson/NPackage)
 

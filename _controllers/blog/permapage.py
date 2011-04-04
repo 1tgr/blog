@@ -18,10 +18,6 @@ def write_permapages():
             #Permalinks MUST be specified. No permalink, no page.
             blog.logger.info("Post has no permalink: "+post.title)
             continue
-        try:
-            bf.util.mkdir(path)
-        except OSError:
-            pass
 
         attrs = { "post": post, "posts": blog.posts }
 
@@ -34,4 +30,4 @@ def write_permapages():
                     attrs['next_post'] = blog.posts[post_num-1]
                 break
         bf.writer.materialize_template(
-            "permapage.mako", bf.util.path_join(path,"index.html"), attrs)
+            "permapage.mako", path, attrs)

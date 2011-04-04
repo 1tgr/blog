@@ -2,8 +2,7 @@
 title: A render farm in Haskell
 date: "2010/03/07 19:40:00"
 updated: "2010/03/07 19:40:00"
-categories: 
-tags: 
+permalink: /blog/2010/03/a_render_farm_in_haskell.html
 ---
 [Browse the full source of the ray tracer on GitHub](http://github.com/timrobinson/smallpt-haskell)
 
