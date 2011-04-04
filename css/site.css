@@ -78,7 +78,7 @@ div#header a{
     background:#303030 none repeat scroll 0 0;
     font-size:12px;
     margin:0;
-    padding:15px 0 6px 0;
+    padding:15px 0 6px 20px;
 }
 #search {
     float:right;

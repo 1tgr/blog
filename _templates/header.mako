@@ -1,17 +1,14 @@
 <% import urlparse %>
-<div id="header" onclick="location.href='${bf.config.blog.path}';" style="cursor: pointer;">
-  <div id="plugbanner"></div>
-  <div id="blog_logo"></div>
-  <h1><a href="${bf.config.blog.path}">
-      <span id="blog_name">
-        ${bf.config.blog.name}
-      </span>
-    </a>
-  </h1>
-</div>
 <div id="top_bar">
   <div class="ButtonBar">
-    &nbsp;
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="${bf.config.blog.path}">
+          <span id="blog_name">
+            ${bf.config.blog.name}
+          </span>
+        </a>
+      </h1>
   </div>
   <div id="search">    
     <form id="searchform" method="get" action="http://www.google.com/search">
