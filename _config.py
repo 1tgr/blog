@@ -67,9 +67,9 @@ blog.posts_per_page = 5
 # :title              -> post's title
 # :uuid               -> sha hash based on title
 # :filename           -> article's filename without suffix
-blog.auto_permalink.enabled = True
+blog.auto_permalink.enabled = False
 # This is relative to site_url
-blog.auto_permalink.path    = "/blog/:year/:month/:day/:filename.html"
+# blog.auto_permalink.path    = "/blog/:year/:month/:day/:filename.html"
 
 ######################################################################
 # Intermediate Settings
@@ -151,18 +151,3 @@ def pre_build():
 def post_build():
     #Do whatever you want after the _site is built
     pass
-
-######################################################################
-# Blogofile.com specific
-######################################################################
-#Build the example photo_gallery controller
-controllers.photo_gallery.enabled = True
-
-docs = controllers.docs
-docs.enabled = True
-##############################################
-### Blogofile release variables
-### (These are custom vars for blogofile.com)
-##############################################
-release_version = "0.7.1"
-release_download_link = "http://pypi.python.org/packages/source/B/Blogofile/blogofile-0.7.1.tar.gz"
