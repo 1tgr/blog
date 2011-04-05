@@ -8,7 +8,7 @@ permalink: /blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.htm
 ---
 <p>This is part 3 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
 <p>Thanks to <em>fslex</em>, <em>fsyacc</em> and the <code>LispVal</code> type, we've ended up with an expression tree that represents our program. To summarise, we've turned this:</p>
-$$code(lang=text)
+$$code(lang=schema)
 (define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))
 (Console.WriteLine "6! = {0}" (fact 6))
 (Console.WriteLine "What is your name?")
