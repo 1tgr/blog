@@ -15,7 +15,8 @@ type Post =
         Date : DateTime option
         Categories : Set<string>
         Tags : string option
-        BaseName : string option
+        BaseName : string
+        Draft : bool
         Format : Format
         Body : string list
     }
@@ -25,7 +26,8 @@ type Post =
             Date = None
             Categories = Set.empty
             Tags = None
-            BaseName = None
+            BaseName = ""
+            Draft = false
             Format = Html
             Body = List.empty
         }
@@ -43,7 +45,17 @@ let Main _ =
     try
         let rec impl (tr : TextReader) (posts : Post list) (state : State) : Post list =
             match tr.ReadLine() with
-            | null -> posts
+            | null ->
+                [
+                    for post in List.rev posts do
+                        match post.Draft, post.Body with
+                        | true, _ -> ()
+                        | _, [] -> ()
+                        | _, l when l |> List.forall (fun s -> s.Length = 0) -> ()
+
+                        | _ ->
+                            yield { post with Body = List.rev post.Body }
+                ]
 
             | s ->
                 let post, rest =
@@ -54,11 +66,12 @@ let Main _ =
                 let posts, state =
                     match state, s with
                     | Yaml, Header("TITLE", s) -> { post with Title = Some s } :: rest, Yaml
-                    | Yaml, Header("BASENAME", s) -> { post with BaseName = Some s } :: rest, Yaml
+                    | Yaml, Header("BASENAME", s) -> { post with BaseName = s } :: rest, Yaml
                     | Yaml, Header("CONVERT BREAKS", s) when s.StartsWith("markdown") -> { post with Format = Markdown } :: rest, Yaml
                     | Yaml, Header("DATE", s) -> { post with Date = Some (DateTime.ParseExact(s, "MM/dd/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)) } :: rest, Yaml
                     | Yaml, Header(("CATEGORY" | "PRIMARY_CATEGORY"), s) -> { post with Categories = Set.add s post.Categories } :: rest, Yaml
                     | Yaml, Header("TAGS", s) -> { post with Tags = Some s } :: rest, Yaml
+                    | Yaml, Header("STATUS", "Draft") -> { post with Draft = true } :: rest, Yaml
                     | (Yaml | Body _), "-----"  -> posts, AwaitingBodyPart
                     | AwaitingBodyPart, Header(part, "") -> posts, Body part
                     | Body "BODY", s -> { post with Body = s :: post.Body } :: rest, state
@@ -69,70 +82,59 @@ let Main _ =
 
         let posts = 
             use sr = new StreamReader("/Users/Tim/Downloads/tim_robinson.txt")
-            impl sr [] Yaml
-            |> List.rev
-            |> List.mapi (fun i post -> i, post)
+            List.mapi (fun i post -> i + 1, post) (impl sr [] Yaml)
         
         for i, post in posts do
-            match post.Body, post.BaseName, post.Title with
-            | _, None, None ->
-                ()
+            let ext =
+                match post.Format with
+                | Html -> ".html"
+                | Markdown -> ".markdown"
 
-            | l, _, _ when "" :: l |> List.forall (fun s -> s.Length = 0) ->
-                ()
+            let filename = sprintf "%03d. %s%s" i post.BaseName ext
+            use sw = new StreamWriter(filename)
+            
+            let header name =
+                function
+                | Some (value : string) ->
+                    let value =
+                        if value.Contains(":") then
+                            "\"" + value.Replace("\"", "\\\"") + "\""
+                        else
+                            value
 
-            | _, Some baseName, _
-            | _, None, Some baseName ->
-                let ext =
-                    match post.Format with
-                    | Html -> ".html"
-                    | Markdown -> ".markdown"
+                    fprintfn sw "%s: %s" name value
 
-                let filename = sprintf "%03d. %s%s" i baseName ext
-                use sw = new StreamWriter(filename)
-                
-                let header name =
-                    function
-                    | Some (value : string) ->
-                        let value =
-                            if value.Contains(":") then
-                                "\"" + value.Replace("\"", "\\\"") + "\""
-                            else
-                                value
+                | None -> ()
 
-                        fprintfn sw "%s: %s" name value
+            let date =
+                match post.Date with
+                | Some dt -> Some (dt.ToString("yyyy/MM/dd HH:mm:ss"))
+                | None -> None
+            
+            let concat set =
+                if Set.isEmpty set then
+                    None
+                else
+                    Some (String.concat "," set)
 
-                    | None -> ()
+            fprintfn sw "---"
+            header "title" post.Title
+            header "date" date
+            header "updated" date
+            header "categories" (concat post.Categories)
+            header "tags" post.Tags
+            
+            post.Date |> Option.iter (fun dt ->
+                let permalink = sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month post.BaseName
+                let permalink = permalink.Replace("_", "-")
+                header "permalink" (Some permalink))
 
-                let date =
-                    match post.Date with
-                    | Some dt -> Some (dt.ToString("yyyy/MM/dd HH:mm:ss"))
-                    | None -> None
-                
-                let concat set =
-                    if Set.isEmpty set then
-                        None
-                    else
-                        Some (String.concat "," set)
+            fprintfn sw "---"
 
-                fprintfn sw "---"
-                header "title" post.Title
-                header "date" date
-                header "updated" date
-                header "categories" (concat post.Categories)
-                header "tags" post.Tags
-                
-                post.Date |> Option.iter (fun dt ->
-                    let permalink = sprintf "/blog/%04d/%02d/%s.html" dt.Year dt.Month baseName
-                    let permalink = permalink.Replace("_", "-")
-                    header "permalink" (Some permalink))
+            for line in post.Body do
+                fprintfn sw "%s" line
 
-                fprintfn sw "---"
-
-                for line in List.rev post.Body do
-                    fprintfn sw "%s" line
-
-                printfn "Written %s" filename
+            printfn "Written %s" filename
 
 
         0
