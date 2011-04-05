@@ -1,0 +1,456 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+  
+
+
+
+<div class="blog_post" id="lisp-compiler-in-f#:-parsing-with-fslex-and-fsyacc">
+  <a class="blog_post_title" name="Lisp compiler in F#: Parsing with fslex and fsyacc" />
+  <h2 class="blog_post_title"><a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html" rel="bookmark" title="Permanent Link to Lisp compiler in F#: Parsing with fslex and fsyacc">Lisp compiler in F#: Parsing with fslex and fsyacc</a></h2>
+  <small>May 31, 2009 at 05:12 PM | categories: 
+
+<a href='/blog/category/compiler'>Compiler</a>
+ | <a href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  
+<p id="p1">This is part 2 of a series of posts on my Lisp compiler written in F#. Previous entry: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">In this post I'll talk about the <em>fslex</em> and <em>fsyacc</em> tools, which, as their names suggest, are similar to the widely used <a href="http://en.wikipedia.org/wiki/Lex_programming_tool"><em>lex</em></a> and <a href="http://en.wikipedia.org/wiki/Yacc"><em>yacc</em></a> tools, which generate lexical scanners and parsers respectively.</p>
+<p id="p3">These tools generate two F# modules that work together:</p>
+<ul>
+  <li><em>fslex</em> generates code that splits a string into tokens, according to a set of rules similar to regular expressions</li>
+
+  <li><em>fsyacc</em> generates code that recognises sequences of tokens, and does something with them, such as building an expression tree</li>
+</ul>
+<p id="p4"><em>fslex</em> and <em>fsyacc</em> are both standalone executables that are installed in the bin subdirectory of an F# distribution. Although can invoke them by hand, their command line parameters and error handling are fairly basic. Luckily F# also ships with a pair of MSBuild tasks that you can put in your .fsproj file.</p>
+<ol>
+  <li>Open your .fsproj file in a text editor (or, in Visual Studio, unload the project, then click 'Edit ProjectName.fsproj' on the unloaded project's right click menu)</li>
+
+  <li>
+    <p id="p5">Towards the bottom you should see a line as follows:</p>
+
+    <p id="p6"><code>&lt;Import Project="$(MSBuildExtensionsPath)\FSharp\1.0\Microsoft.FSharp.Targets" /&gt;</code></p>
+
+    <p id="p7">Under this line, paste the following:</p>
+
+    <p id="p8"><code>&lt;Import Project="$(MSBuildExtensionsPath)\FSharp\1.0\FSharp.PowerPack.Targets" /&gt;</code></p>
+  </li>
+
+  <li>If you have the F# May 2009 CTP (version 1.6.9.16) or newer, <strong>remove the Microsoft.FSharp.Targets line</strong>. If you have the September 2008 CTP (version 1.6.9.2) or older, <strong>leave the Microsoft.FSharp.Targets line alone</strong>. (The May version of FSharp.PowerPack.Targets has its own import of Microsoft.FSharp.Targets, so leaving the import in the .fsproj file causes an MSBuild error.)</li>
+
+  <li>
+    <p id="p9">Slightly higher up in the .fsproj file, you'll see an <code>&lt;ItemGroup&gt;</code> element that contains your source files. Add the following lines; put them at the top of the list so that <em>fslex</em> and <em>fsyacc</em> get run before any of the compilation steps:</p>
+
+    <p id="p10"><code>&lt;FsYacc Include="YourParser.fsy" /&gt;</code><br/>
+    <code>&lt;FsLex Include="YourScanner.fsl" /&gt;</code></p>
+  </li>
+
+  <li>Save and close the .fsproj file in the text editor, then reload it in Visual Studio to ensure it still loads OK. (You did keep the original version in source control, right?) The .fsy and .fsl files will be missing at this point, but I'm going to discuss them in a moment.</li>
+
+  <li><strong>Extra step for the May CTP:</strong> The DLL that implements the <code>&lt;FsLex&gt;</code> and <code>&lt;FsYacc&gt;</code> tasks is installed to the wrong directory. You'll need to <a href="http://cs.hubfs.net/forums/thread/10484.aspx">follow this set of instructions and copy the FSharp.PowerPack.Build.Tasks.dll file to the right place</a>.</li>
+</ol>
+<p id="p11">Once you've successfully run <em>fslex</em> and <em>fsyacc</em> and generated F# source for the first time, you'll need to include these F# source files in your project. Because the file generated by <em>fslex</em> relies on <em>fsyacc</em>'s token definitions, you'll need to include the generated <em>fsyacc</em> file first -- remember that build order is significant in F#, unlike in C#. Feel free to check this generated source into source control, but remember to check it out before making changes to the .fsl and .fsy sources; these tools thrown an access denied exception if the generated source file is read only.</p>
+<p id="p12">The .fsy and .fsl files should look familiar if you've used <em>lex</em> and <em>yacc</em> before. Here are the rules I'm using to parse Lisp s-expressions:</p>
+<p class="alt" id="p13"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSYacc.fsy">FSYacc.fsy</a> -- generates FSYacc.fsi and FSYacc.fs</p>
+
+<div class="pygments_murphy"><pre>%{
+open Tim.Lisp.Core
+%}
+
+%start parse
+%token &lt;string&gt; Identifier
+%token &lt;string&gt; Text
+%token &lt;int&gt; Digits
+%token Apostrophe LeftParen RightParen Eof
+%type &lt;Tim.Lisp.Core.LispVal list&gt; parse
+
+%%
+
+Expr: Identifier { Atom $1 }
+    | Text { String $1 }
+    | Digits { Number $1 }
+    | LeftParen ExprList RightParen { $2 |&gt; List.rev |&gt; List }
+    | Apostrophe Expr { List [ Atom "quote"; $2 ] }
+
+ExprList: Expr { [ $1 ] }
+        | ExprList Expr { $2 :: $1  }
+
+parse: ExprList Eof { List.rev $1 }
+</pre></div>
+
+
+
+<p id="p14">Note that the <em>fsyacc</em> source defines the list of tokens that it expects the <em>fslex</em> source to emit. Because this is F#, the list of <code>%code</code> statements above results in the generation of one of our old friends, the discriminated union:</p>
+<p class="alt" id="p15"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSYacc.fsi">FSYacc.fsi</a> -- generated from FSYacc.fsy</p>
+
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Signature</span> <span class="n">file</span> <span class="k">for</span> <span class="n">parser</span> <span class="n">generated</span> <span class="n">by</span> <span class="n">fsyacc</span>
+<span class="o">#</span><span class="n">light</span>
+<span class="k">type</span> <span class="n">token</span> <span class="o">=</span> 
+  <span class="o">|</span> <span class="nc">Apostrophe</span>
+  <span class="o">|</span> <span class="nc">LeftParen</span>
+  <span class="o">|</span> <span class="nc">RightParen</span>
+  <span class="o">|</span> <span class="nc">Eof</span>
+  <span class="o">|</span> <span class="nc">Digits</span> <span class="k">of</span> <span class="o">(</span><span class="kt">int</span><span class="o">)</span>
+  <span class="o">|</span> <span class="nc">Text</span> <span class="k">of</span> <span class="o">(</span><span class="kt">string</span><span class="o">)</span>
+  <span class="o">|</span> <span class="nc">Identifier</span> <span class="k">of</span> <span class="o">(</span><span class="kt">string</span><span class="o">)</span>
+<span class="o">//</span> <span class="n">snip</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">generated</span> <span class="n">code</span>
+</pre></div>
+
+
+
+<p id="p16">The rest of the file consists of <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a>-like rules; here I'm recognising the key parts of s-expression syntax and emitting an expression tree in the form of my own <code>LispVal</code> data structure, which is another discriminated union.</p>
+<p id="p17">The .fsl file takes text, applies regular expressions to it, and returns a stream of tokens:</p>
+<p class="alt" id="p18"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSLex.fsl">FSLex.fsl</a> -- generates FSLex.fs</p>
+
+<div class="pygments_murphy"><pre>{
+open System
+open System.Text
+open Microsoft.FSharp.Text.Lexing
+open FSYacc
+}
+
+let digit = ['0'-'9']
+let alpha = ['a'-'z' 'A'-'Z']
+let whitespace = [' ' '\t']
+let newline = ('\n' | '\r' '\n')
+let identifier = [^'"' '0'-'9' '(' ')' ' ' '\t' '\n' '\r']
+ 
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| newline           { lexbuf.EndPos &lt;- lexbuf.EndPos.NextLine; tokenize lexbuf }
+| ['-']?digit+      { Digits &lt;| Int32.Parse(Encoding.UTF8.GetString(lexbuf.Lexeme)) }
+| '('               { LeftParen }
+| ')'               { RightParen }
+| '\''              { Apostrophe }
+| '"' [^'"']* '"'   { let s = Encoding.UTF8.GetString(lexbuf.Lexeme) in Text &lt;| s.Substring(1, s.Length - 2) }
+| eof               { Eof }
+| identifier+       { Identifier &lt;| Encoding.UTF8.GetString(lexbuf.Lexeme) }
+</pre></div>
+
+
+
+<p id="p19"><em>fslex</em> regular expressions aren't entirely standard:</p>
+<ul>
+  <li>White space is ignored</li>
+
+  <li>Literal characters are enclosed in single quotes</li>
+
+  <li>You're allowed to use <code>let</code> to define aliases (see <code>digit</code>, <code>alpha</code>, <code>whitespace</code>, <code>newline</code> and <code>identifier</code> above)</li>
+</ul>
+<p id="p20">Each <code>rule</code> block defines a function in the generated F# source that accepts an <code>Microsoft.FSharp.Text.Lexing.LexBuffer&lt;byte&gt;</code> and returns the token type defined by the generated <em>fsyacc</em> source. Although <code>LexBuffer</code> is a generic type, <em>fslex</em> prior to May only generates ASCII parsers, hence the calls to <code>Encoding.UTF8.GetString</code> above. The May CTP adds a --unicode command line parameter, which appears to enable the use of <code>LexBuffer&lt;char&gt;</code>, but I haven't found how to enable this option via the MSBuild task.</p>
+<p id="p21">Given the generated source code, it's relatively straightforward to write a facade around it. Note that you'll need to add a reference to Microsoft.FSharp.PowerPack.dll in order to use the types in the <code>Microsoft.FSharp.Text.Lexing</code> namespace.</p>
+<p class="alt" id="p22"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/Parser.fs">Parser.fs</a></p>
+
+<div class="pygments_murphy"><pre><span class="o">#</span><span class="n">light</span>
+<span class="k">open</span> <span class="nn">System</span><span class="p">.</span><span class="nc">Text</span>
+<span class="k">open</span> <span class="nn">Microsoft</span><span class="p">.</span><span class="nn">FSharp</span><span class="p">.</span><span class="nn">Text</span><span class="p">.</span><span class="nc">Lexing</span>
+
+<span class="k">module</span> <span class="nc">Parser</span> <span class="o">=</span>
+    <span class="o">//</span> <span class="nc">Accepts</span> <span class="n">a</span> <span class="kt">string</span> <span class="ow">and</span> <span class="n">either</span> <span class="n">returns</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="n">objects</span> <span class="ow">or</span> <span class="n">throws</span> <span class="n">an</span> <span class="k">exception</span>
+    <span class="k">let</span> <span class="n">parseString</span> <span class="o">(</span><span class="n">s</span> <span class="o">:</span> <span class="kt">string</span><span class="o">)</span> <span class="o">=</span> <span class="nn">FSYacc</span><span class="p">.</span><span class="n">parse</span> <span class="nn">FSLex</span><span class="p">.</span><span class="n">tokenize</span> <span class="o">&lt;|</span> <span class="nc">LexBuffer</span><span class="o">&lt;_&gt;.</span><span class="nc">FromBytes</span><span class="o">(</span><span class="nn">Encoding</span><span class="p">.</span><span class="nn">UTF8</span><span class="p">.</span><span class="nc">GetBytes</span><span class="o">(</span><span class="n">s</span><span class="o">))</span>
+</pre></div>
+
+
+
+<p id="p23">In the next post, I'll take the <code>LispVal</code> objects returned by the <code>parseString</code> function and use them to generate actual IL.</p>
+
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="lisp-compiler-in-f#:-introduction">
+  <a class="blog_post_title" name="Lisp compiler in F#: Introduction" />
+  <h2 class="blog_post_title"><a href="/blog/2009/05/lisp-compiler-in-f-introduction.html" rel="bookmark" title="Permanent Link to Lisp compiler in F#: Introduction">Lisp compiler in F#: Introduction</a></h2>
+  <small>May 30, 2009 at 10:34 PM | categories: 
+
+<a href='/blog/category/compiler'>Compiler</a>
+ | <a href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-introduction.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  
+<p id="p1"><a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">I started learning functional programming in F# and Haskell around 6 months ago, and one of the programs I've been writing in order to learn F# is a small Lisp compiler, with syntax similar to <a href="http://en.wikipedia.org/wiki/Scheme_(programming_language)">Scheme</a>:</p>
+
+<div class="pygments_murphy"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">fact</span> <span class="nv">n</span><span class="p">)</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">0</span><span class="p">)</span> <span class="mi">1</span> <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">fact</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"6! = {0}"</span> <span class="p">(</span><span class="nf">fact</span> <span class="mi">6</span><span class="p">))</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"What is your name?"</span><span class="p">)</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"Hello, {0}"</span> <span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">ReadLine</span><span class="p">))</span>
+</pre></div>
+
+
+
+<p id="p3">I'm planning on posting a series of articles explaining how the compiler demonstrates some useful F# features. By way of an introduction, I'd like to talk about two of my favourite features from functional languages: discriminated unions and pattern matching.</p>
+<p id="p4">At their simplest, discriminated unions are equivalent to .NET enums, since they allow a strongly-types variable to hold one of a fixed set of values:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent:</span>
+<span class="c"> * public enum ListOp { Add, Subtract, Multiply, Divide, Equal }</span>
+<span class="c"> *)</span>
+
+<span class="k">type</span> <span class="nc">ListOp</span> <span class="o">=</span> <span class="nc">Add</span>
+            <span class="o">|</span> <span class="nc">Subtract</span> 
+            <span class="o">|</span> <span class="nc">Multiply</span> 
+            <span class="o">|</span> <span class="nc">Divide</span> 
+            <span class="o">|</span> <span class="nc">Equal</span>
+</pre></div>
+
+
+
+<p id="p5">But each of these possible values can be tagged with a data structure, which means that discriminated unions are useful where an object-orientated language would need a hierarchy of classes:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent:</span>
+<span class="c"> * public abstract class LispVal { }</span>
+<span class="c"> *</span>
+<span class="c"> * public sealed class ArgRef : LispVal</span>
+<span class="c"> * {</span>
+<span class="c"> *     public ArgRef(int index)</span>
+<span class="c"> *     {</span>
+<span class="c"> *         Index = index;</span>
+<span class="c"> *     }</span>
+<span class="c"> *</span>
+<span class="c"> *     public int Index { get; private set; }</span>
+<span class="c"> * }</span>
+<span class="c"> *</span>
+<span class="c"> * public sealed class Atom : LispVal</span>
+<span class="c"> * {</span>
+<span class="c"> *     public Atom(string text)</span>
+<span class="c"> *     {</span>
+<span class="c"> *         Text = text;</span>
+<span class="c"> *     }</span>
+<span class="c"> *</span>
+<span class="c"> *     public string Text { get; private set; }</span>
+<span class="c"> * }</span>
+<span class="c"> *</span>
+<span class="c"> * etc., for the other cases</span>
+<span class="c"> *)</span>
+<span class="k">type</span> <span class="nc">LispVal</span> <span class="o">=</span> 
+             <span class="o">|</span> <span class="nc">ArgRef</span> <span class="k">of</span> <span class="kt">int</span>                                
+             <span class="o">|</span> <span class="nc">Atom</span> <span class="k">of</span> <span class="kt">string</span>
+             <span class="o">|</span> <span class="nc">Bool</span> <span class="k">of</span> <span class="kt">bool</span>
+             <span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="o">*</span> <span class="nc">LispVal</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="k">of</span> <span class="kt">string</span> <span class="kt">list</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="k">of</span> <span class="nc">MethodInfo</span> <span class="o">*</span> <span class="kt">bool</span> <span class="o">*</span> <span class="nc">Type</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">List</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="k">of</span> <span class="nc">ListOp</span> <span class="o">*</span> <span class="nc">LispVal</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">Number</span> <span class="k">of</span> <span class="kt">int</span>
+             <span class="o">|</span> <span class="nc">QuotePrimitive</span> <span class="k">of</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">String</span> <span class="k">of</span> <span class="kt">string</span>
+             <span class="o">|</span> <span class="nc">VariableDef</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">VariableRef</span> <span class="k">of</span> <span class="nc">LocalBuilder</span>
+</pre></div>
+
+
+
+<p id="p6">When faced with the task of writing code that understands the C# class hierarchy above, I'd implement the <a href="http://en.wikipedia.org/wiki/Visitor_pattern">Visitor pattern</a>: I'd define an interface called <code>ILispValVisitor</code>, and every time I needed to process a <code>LispVal</code> somehow, I'd declare a nested class that implemented the right <code>ILispValVisitor</code> methods. Fairly straightforward, right? -- a boilerplate class implementation in every piece of code that needs to look inside a <code>LispVal</code>.</p>
+<p id="p7">Functional languages have a much more elegant alternative, in the form of pattern matching operators. There's no real equivalent to pattern matching in C#, although the concept could be similar to <code>if</code>, <code>switch</code> or the visitor pattern depending on the situation:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent: an implementation of the visitor pattern</span>
+<span class="c"> *)</span>
+<span class="k">let</span> <span class="k">rec</span> <span class="n">typeOf</span> <span class="o">(</span><span class="n">env</span> <span class="o">:</span> <span class="nc">Map</span><span class="o">)</span> <span class="o">=</span> <span class="k">function</span>
+    <span class="o">|</span> <span class="nc">ArgRef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">Atom</span> <span class="n">a</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">ident</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">Bool</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="o">(_,</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">elseValue</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">thenValue</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="n">t</span> <span class="k">when</span> <span class="n">t</span> <span class="o">=</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">elseValue</span> <span class="o">-&gt;</span> <span class="n">t</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"expected 'then' and 'else' branches to have same type"</span><span class="o">)</span>
+
+    <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="o">(_,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">body</span>
+    <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">(</span><span class="n">methodBuilder</span><span class="o">,</span> <span class="o">_,</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="n">methodBuilder</span><span class="o">.</span><span class="nc">ReturnType</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="n">a</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">lambdaIdent</span> <span class="n">args</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="n">fn</span> <span class="o">::</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"can't invoke %A"</span> <span class="n">fn</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"can't compile empty list"</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">Number</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">String</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">QuotePrimitive</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">VariableDef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">VariableRef</span> <span class="n">local</span> <span class="o">-&gt;</span> <span class="n">local</span><span class="o">.</span><span class="nc">LocalType</span>
+</pre></div>
+
+
+
+<p id="p8">The Lisp compiler I wrote relies on a discriminated union, <code>LispVal</code> for storing expression trees, and pattern matching for most of its processing. I'll post more in-depth articles covering the source code in detail, including:</p>
+<ul>
+  <li>Parsing with fslex and fsyacc</li>
+
+  <li>Code generation using <code>System.Reflection.Emit</code></li>
+
+  <li>Calling the compiler from C#</li>
+</ul>
+
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-introduction.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+ <a href="/blog/category/compiler/1">« Previous Page</a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

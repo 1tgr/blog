@@ -1,0 +1,416 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+  
+
+
+
+<div class="blog_post" id="can-i-have-a-.net-package-manager-">
+  <a class="blog_post_title" name="Can I have a .NET package manager?" />
+  <h2 class="blog_post_title"><a href="/blog/2010/04/can-i-have-a-net-package-manager.html" rel="bookmark" title="Permanent Link to Can I have a .NET package manager?">Can I have a .NET package manager?</a></h2>
+  <small>April 18, 2010 at 08:28 PM | categories: 
+
+<a href='/blog/category/npackage'>NPackage</a>
+ | <a href="http://www.partario.com/blog/2010/04/can-i-have-a-net-package-manager.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">Insipired by source code packaging systems like <a href="http://www.haskell.org/cabal/">Haskell Cabal</a>, I'd like a standard tool for publishing shared code. I've seen teams take a variety of sub-optimal approaches, including: building everything from source each time; building binaries once then referencing them from a network share; and building binaries then checking them into source control.</p>
+<p id="p2">As a developer, what I'd like to be able to do is to declare the external libraries that my code depends on. I'd like it to work the same way for third-party code (say, NUnit and log4net) as for my own code (say, a library that gets re-used across several apps on the same team). There should be a standard format for publishing libraries, but there should be minimal effort involved in pulling one of these libraries into my code.</p>
+<p id="p3">What I propose is:</p>
+<ul>
+<li><strong>One or more central package sites.</strong> One could be a public web site that maintains a list of open-source libraries; teams could host their own for internal libraries. These internal sites could just be directories in the file system or in source control. Package sites just contain enough information to find the right binaries or source code -- the binaries and sources themselves don't have to live at the same site.</li>
+<li>A <strong>command line app that updates packages to the current version,</strong> either by downloading binaries or by downloading and building source code. This would run on individual developers' PCs and on a continuous integration server.</li>
+<li>A <strong>tool for keeping Visual Studio project references up to date.</strong> I spend far too much time in the Project References dialog -- or editing .csproj files by hand -- to fix broken reference paths and libraries accidentally referenced from a developer's GAC.</li>
+</ul>
+<p id="p4">I don't know of anything that solves the problem as cleanly as in other languages. Am I missing something?</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2010/04/can-i-have-a-net-package-manager.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="movable-type-on-ec2">
+  <a class="blog_post_title" name="Movable Type on EC2" />
+  <h2 class="blog_post_title"><a href="/blog/2010/04/movable-type-on-ec2.html" rel="bookmark" title="Permanent Link to Movable Type on EC2">Movable Type on EC2</a></h2>
+  <small>April 18, 2010 at 08:00 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2010/04/movable-type-on-ec2.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">I'm a big fan of virtual servers and I've always run this web site from one. Until recently I had it on a <a href="http://www.partario.com/blog/2009/04/first-post.html">VMware instance on my home PC</a>, although <a href="http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html">my recent experience with Amazon EC2</a> and a couple of large traffic spikes prompted me to move it.</p>
+<p id="p2">In the end the process turned out to be pretty easy:</p>
+<ol>
+<li>Back up to Amazon S3 using <a href="http://duplicity.nongnu.org/">duplicity</a>:</li>
+<li>MySQL dump: <code>mysqldump --all-databases</code></li>
+<li>/etc/apache2</li>
+<li>/var/www</li>
+<li>Start an EC2 small instance running AMI Ubuntu 9.04 (ami-ccf615a5)</li>
+<li>Restore from Amazon S3</li>
+<li><code>apt-get -y install apache2 duplicity libapache2-mod-perl2 libdbd-mysql-perl libdbi-perl mysql-server perlmagick python-boto</code></li>
+<li>Restore MySQL dump, /etc/apache2 and /var/www using duplicity</li>
+<li>Run MySQL script against the local instance</li>
+<li>Start Apache. Check whether the static HTML pages and Movable Type's admin interface work.</li>
+<li>Assign an Amazon elastic IP address to the EC2 instance. This gives me a static IP address that I can refer to from DNS.</li>
+<li>Remap the DNS alias (an A record and a CNAME record) via my ISP's web site</li>
+<li>Done!</li>
+</ol>
+<p id="p3">I'm happy with the changes so far:</p>
+<ul>
+<li>Performance has been fine: although publishing the site now takes 30 seconds not 15, I'm getting much better response times and bandwidth</li>
+<li>I'm paying to run an EC2 instance full time whereas before I was just paying for home power bills</li>
+<li>I'm not going to get shot by my ISP next time one of my posts appears on Reddit</li>
+</ul>
+<p id="p4">The fact that I was taking daily backups made the move risk-free. It took a couple of attempts to get a working site on the EC2 server, but I was able to start a fresh instance and restore from backup each time. I also know that, if the site does fall over in future, restoring from backup will take a few minutes and I'll lose one day of data at most.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2010/04/movable-type-on-ec2.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="cherry-blossom-in-jubilee-place">
+  <a class="blog_post_title" name="Cherry Blossom in Jubilee Place" />
+  <h2 class="blog_post_title"><a href="/blog/2010/04/cherry-blossom-in-jubilee-place.html" rel="bookmark" title="Permanent Link to Cherry Blossom in Jubilee Place">Cherry Blossom in Jubilee Place</a></h2>
+  <small>April 12, 2010 at 09:07 AM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2010/04/cherry-blossom-in-jubilee-place.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><a href="http://www.flickr.com/photos/tim-robinson/4511725083/" title="photo sharing"><img src="http://farm3.static.flickr.com/2168/4511725083_61ec2dc0c2_d.jpg" alt="" class="mt-image-none"/></a>
+<br/>
+<span style="font-size: 0.9em; margin-top: 0px;">
+<a href="http://www.flickr.com/photos/tim-robinson/4511725083/">Jubilee Place Cherry Blossom - 2</a>
+<br/>
+Originally uploaded by <a href="http://www.flickr.com/people/tim-robinson/">Tim Robinson</a>
+</span>
+<p id="p2">Summer has almost arrived in London -- I took this at the weekend in one of the parks close to where I work.</p></p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2010/04/cherry-blossom-in-jubilee-place.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="a-render-farm-in-haskell">
+  <a class="blog_post_title" name="A render farm in Haskell" />
+  <h2 class="blog_post_title"><a href="/blog/2010/03/a-render-farm-in-haskell.html" rel="bookmark" title="Permanent Link to A render farm in Haskell">A render farm in Haskell</a></h2>
+  <small>March 07, 2010 at 07:40 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><a href="http://github.com/timrobinson/smallpt-haskell">Browse the full source of the ray tracer on GitHub</a></p>
+<p id="p2">A few weeks back I came across the <a href="http://kevinbeason.com/smallpt/">smallpt ray tracer</a> by Kevin Beason. smallpt is a global illumination renderer written in 99 lines of C++. Since it uses a <a href="http://en.wikipedia.org/wiki/Monte_Carlo_method">Monte Carlo</a> technique to randomly cast rays and average the results, the longer you can leave it running, the better the image will look. Kevin's code uses OpenMP to split calculations across more than one CPU core.</p>
+<p id="p3"><a href="http://github.com/timrobinson/smallpt-haskell/raw/master/1024-768-4000spp.png"><img alt="Sample smallpt image" src="http://www.partario.com/blog/2010/03/07/1024-768-4000spp.png" width="540" height="405" class="mt-image-none" style=""/></a></p>
+<p id="p4">Since ray tracing is the sort of mathsy task that Haskell excels at, I wanted to see how what a Haskell port of Kevin's code looked like. That code itself isn't the subject of this article, because what I wanted to write about instead are the techniques you can use to distribute Haskell code across multiple cores. These techniques range from <code>parMap</code> (which is almost transparent to the program, but provides little control over where the code runs) to brute-force distribution of work across several machines.</p>
+<h3>parMap</h3>
+<p id="p5">One of the things I love about Haskell is that its pure functional nature makes it straightforward to parallelise code within a single machine. You can normally take any code implemented in terms of <code>map</code> and parallelise it with <code>parMap</code>, from the <a href="http://hackage.haskell.org/packages/archive/parallel/latest/doc/html/Control-Parallel-Strategies.html">Control.Parallel.Strategies</a> module. <code>parMap</code> will use lightweight threads provided by the runtime to apply a function to each element in a list in parallel.</p>
+<p id="p6">The <code>parMap</code> function accepts an argument that controls the evaluation strategy. Most of the examples I've seen use <code>parMap rwhnf</code> ("weak head normal form"), which only evaluates the outside of a data structure; the insides of your data are evaluated lazily, and this doesn't necessarily happen on one of the parallel lightweight threads as intended.</p>
+<p id="p7">To evaluate anything more complicated than a list of simple values in you'll probably need to use <code>parMap rdeepseq</code>, which recurses inside your data on the lightweight thread so that it's fully evaluated by the time <code>parMap</code> finishes. <code>rdeepseq</code> is defined in terms of the <a href="http://hackage.haskell.org/packages/archive/deepseq/latest/doc/html/Control-DeepSeq.html">Control.DeepSeq</a> module, and if you've defined your own types, you'll find you need to implement <code>NFData</code>.</p>
+<p id="p8">A final note on <code>parMap</code>: don't forget to compile with the <code>-threaded</code> flag, then run your program with <code>+RTS -Nx</code>, where _x_ is the number of CPU cores you want to distribute across.</p>
+<h3>forkIO</h3>
+<p id="p9">Haskell supports good old-fashioned manual concurrency with functions in the <a href="http://hackage.haskell.org/packages/archive/base/latest/doc/html/Control-Concurrent.html">Control.Concurrent</a> module. This works broadly the same as in other languages:</p>
+<ul>
+<li>Use <code>forkIO</code> to start an IO computation in parallel with the current thread</li>
+<li>Threads can communicate through objects called MVars: create a new one using <code>newEmptyMVar</code> or <code>newMVar</code></li>
+<li>MVars can be empty, or they can hold at most one value:</li>
+<li>Read a value from an MVar using <code>takeMVar</code>. This will block if the MVar is currently empty.</li>
+<li>Write a value to an MVar using <code>putMVar</code>. This will block if the MVar is currently full. Calling <code>putMVar</code> wakes up one of the threads that's blocked inside <code>takeMVar</code>.</li>
+</ul>
+<p id="p10"><code>forkIO</code> starts a computation in parallel and lets you essentially forget about it; mvars are an effective way of encapsulating mutable state shared between more than one thread. What I like about this is that there's no error-prone manual locking like you'd find in, say, Java or .NET. Although <code>forkIO</code> and mvars give you full control over thread scheduling, they're not drop-in replacements for sequential calculations in the same way as <code>parMap</code>.</p>
+<h3>Brute force</h3>
+<p id="p11">The previous two techniques rely on the multi-threading capabilities of the Haskell runtime. They know nothing of what's happening outside of a single Haskell process, which limits them to the number of cores present in the machine. To go beyond that, separate instances of your program will need to communicate with each other over a network.</p>
+<p id="p12">In my Haskell port of smallpt, I used this technique to run as many instances of the program as needed: one process per core on the local machine, and one process on each of a range of instances running on Amazon EC2. The communication protocol is as simple as possible: plain text over pipes. I used <code>ssh</code> to communicate with the EC2 instances, so from the outside there's no difference between a local instance and one running on the cloud.</p>
+<p id="p13"><a href="http://github.com/timrobinson/smallpt-haskell/blob/master/Tim/Smallpt/Distribution.hs">The algorithm</a> goes as follows:</p>
+<ol>
+<li>Establish the work you need to do. In this case, a work item is one line in the final rendered image.</li>
+<li>Split the work into tasks you can give to the worker processes. For simplicity, I'm splitting the work equally to give one task to each worker.</li>
+<li>Launch the workers and provide them with the task inputs. Since workers accept plain text, I take a <code>Work</code> object and <code>hPrint</code> it to a pipe.</li>
+<li>When each worker finishes, collect its output. Outputs will come back in an unpredictable order.</li>
+<li>When all the workers are done, sort all of the outputs into the same order as the inputs</li>
+</ol>
+<p id="p14">The coordinator is the program you launch from the command line, and it deals with things like command-line parsing, executing the distribution algorithm above, and writing a .png format image at the end. The worker processes are themselves instances of the <code>smallpt</code> executable, launched with the <code>-r</code> flag. In effect what each <code>smallpt -r</code> does is:</p>
+<pre><code>-- Render one line of the scene and return it as a list of pixels
+line :: (Floating a, Ord a, Random a) =&gt; Context a -&gt; Int -&gt; [Vec a]
+
+runWorker = interact (show . map line . read)
+</code></pre>
+<p id="p15">One potential flaw in this is that, because you're communicating over plain text, the Haskell type system won't trap any errors: there isn't necessarily any link between the types in the coordinator and the types in the worker. The interface to the distribution code consists of a <code>Coordinator a b</code> record, where <code>a</code> is the type for inputs to the workers, and <code>b</code> is the type that the workers produce as output:</p>
+<pre><code>data (Show a, Read b) =&gt; Coordinator a b = 
+    Coordinator { submitWork :: [String] -&gt; [a] -&gt; IO [b],
+                  runWorker :: IO () }
+
+coordinator :: (Read a, Show a, Read b, Show b) =&gt; (a -&gt; b) -&gt; Coordinator a b
+coordinator worker = 
+    Coordinator { submitWork = submitWork',
+                  runWorker = interact (show . map worker . read) }
+</code></pre>
+<p id="p16">Most of the multi-threading code lives inside the <code>submitWork'</code> function which implements the algorithm above:</p>
+<ol>
+<li>Given a list of worker commands lines (<code>[String]</code>) and the work itself (<code>[a]</code>), produce a list of tuples of workers and tasks</li>
+<li>Using <code>forkIO</code>, fork one thread per worker. Inside each of these threads:</li>
+<li>Start the worker process itself (via <code>createProcess shell</code>)</li>
+<li>Write an <code>[a]</code> to its standard input</li>
+<li>Read a <code>[b]</code> from its standard output</li>
+<li>Put the <code>[b]</code> into an mvar shared between all worker threads</li>
+<li>Back in the coordinator thread, call <code>takeMVar</code> once for each worker. This produces a list of results as a <code>[[b]]</code>.</li>
+<li>Once all the workers have finished, collapse the results into a <code>[b]</code>, making sure the output list comes back in the same order as the original inputs. If any of the workers encountered an error, use <code>ioError</code> to fail the whole operation.</li>
+</ol>
+<p id="p17">This approach works remarkably well for this simple ray tracer demo. But it has some serious flaws that you'd want to avoid in a production system:</p>
+<ul>
+<li>Any failed worker process invalidates the whole set of results. Even in the absence of software bugs, machines can fail any time (consider how often disks fail when you've got 4,000 of them). The coordinator should recognise transient errors and retry those tasks; it might choose to take workers out of rotation if they fail repeatedly.</li>
+<li>All machines are assumed to be equally powerful. This is rarely the case: for instance, workers running on my Mac here finish far sooner than ones on my small Amazon instances.</li>
+<li>All work is assumed to take the same length of time to complete. Even in this simple ray tracer, plain diffuse surfaces are much easier to calculate than reflective (shiny) ones or refractive (transparent) ones.</li>
+<li>Tasks are allocated up front. If a worker finishes early -- maybe because it's running on a Mac Pro, or because it generated a line of empty space -- it can't have any more work allocated to it.</li>
+<li>Workers can't spawn other workers. In my code the worker function isn't declared in the IO monad, so it can't interact with anything. Even if it could, it would need to know about all of the other workers so that it could pick an idle core to do work on.</li>
+</ul>
+<p id="p18">Next time I'll talk about some of the code in the ray tracer itself, as well as some approaches you'd use in practice to correct these flaws in the demo.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="an-improved-spelling-corrector-in-haskell">
+  <a class="blog_post_title" name="An improved spelling corrector in Haskell" />
+  <h2 class="blog_post_title"><a href="/blog/2009/11/an-improved-spelling-corrector-in-haskell.html" rel="bookmark" title="Permanent Link to An improved spelling corrector in Haskell">An improved spelling corrector in Haskell</a></h2>
+  <small>November 01, 2009 at 11:09 AM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><a href="http://www.partario.com/blog/2009/10/a-spelling-corrector-in-haskell.html">My previous post</a> came up on the <a href="http://www.reddit.com/r/haskell/comments/9zowr/a_spelling_corrector_in_haskell/">Haskell Reddit</a> yesterday, and I got some great suggestions for improvements to the program, which <a href="http://github.com/timrobinson/spell-correct/blob/master/Correct.hs">I've checked into GitHub</a>.</p>
+<ul>
+<li>
+<p id="p2"><code>Map.fromListWith</code> replaces <code>List.foldl'</code> and <code>Map.insertWith'</code>. <a href="http://www.haskell.org/ghc/docs/latest/html/libraries/containers/Data-Map.html#v%3AfromListWith"><code>fromListWith</code></a> appears to be specifically designed for aggregating values that share a common key (in .NET terminology it's the <a href="http://msdn.microsoft.com/en-us/library/bb534501.aspx"><code>GroupBy</code></a> function).</p>
+</li>
+<li>
+<p id="p3">I'll commonly use a construct like <code>readFile "big.txt" &gt;&gt;= return . train . lowerWords</code>, to bind a monad value <code>readFile "big.txt"</code> to a function <code>(train . lowerWords)</code>, then produce a new monad value with <code>return</code>. A shorter way to write this is <code>fmap (train . lowerWords) (readFile "big.txt")</code>, or, with an import from Control.Applicative, <code>(train . lowerWords &lt;$&gt; readFile "big.txt")</code>.</p>
+</li>
+<li>
+<p id="p4">You can replace the lambda syntax <code>(\w -&gt; Map.lookup w nwords)</code> with an operator section, <code>('Map.lookup' nwords)</code>. You might see this more commonly as <code>(+1)</code> in place of <code>(\x -&gt; x + 1)</code>; it's the same thing. <strong class="alt">Edit:</strong> the challenging Markdown syntax means that you'll have to imagine the single quotes around <code>Map.lookup</code> replaced with backticks, `.</p>
+</li>
+</ul>
+<p id="p5">I should have realised this at the time, but it didn't occur to me that <a href="http://www.haskell.org/onlinereport/exps.html#list-comprehensions">you can use full pattern-matching syntax in the right-hand side of a Haskell list comprehension</a>. If the match fails on some element then that element is filtered out. We can use this to improve on the Python version of the <code>edits1</code> function: whereas the Python version combines its <code>b[0]</code> subscripts with an <code>if b</code> check, the Haskell version can use pattern matching to do both. We can also use the <code>inits</code> and <code>tails</code> functions to build substrings instead of brute-force applications of <code>take</code> and <code>drop</code>.</p>
+<div class="pygments_murphy"><pre># Python
+def edits1(word):
+   s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
+   deletes    = [a + b[1:] for a, b in s if b]
+   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)&gt;1]
+   replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
+   inserts    = [a + c + b     for a, b in s for c in alphabet]
+   return set(deletes + transposes + replaces + inserts)
+
+&gt; -- Haskell
+&gt; edits1 word = let s = zip (inits word) (tails word)
+&gt;                   deletes    = [ a ++ y     | (a, _:y  ) &lt;- s ]
+&gt;                   transposes = [ a ++ y:x:z | (a, x:y:z) &lt;- s ]
+&gt;                   replaces   = [ a ++ c:y   | (a, _:y  ) &lt;- s, c &lt;- alphabet ]
+&gt;                   inserts    = [ a ++ c:x   | (a, x    ) &lt;- s, c &lt;- alphabet ]
+&gt;                in Set.fromList $ concat [ deletes, transposes, replaces, inserts ]
+</pre></div>
+
+<p id="p6">The <code>edits1</code> function is the densest one in both the Python and Haskell versions. It's the one where the intent of the code was least clear to me when I originally saw it, probably because of the extra clutter in the list comprehensions. In the latest Haskell revision it's more obvious what's going on.</p>
+<p id="p7">I've consistently used the names <code>x</code>, <code>y</code> and <code>z</code> for the first three parts of the word's suffix. Because they consistently stand for the same thing, any inconsistencies jump out at you when you read the code:</p>
+<ul>
+<li><code>a ++ y</code> stands out because <code>x</code> is missing; it's been <em>deleted</em>. (<code>x</code> isn't even mentioned in the pattern match.)</li>
+<li><code>a ++ y:x:z</code> stands out because <code>x</code> and <code>y</code> are the wrong way round; we're <em>transposing</em> them</li>
+<li><code>a ++ c:y</code> stands out because we've got <code>c</code> instead of <code>x</code>; <code>x</code> has been <em>replaced</em>. (Again, <code>x</code> has dropped out of the pattern match.)</li>
+<li><code>a ++ c:x</code> has <code>c</code> in front of <code>x</code>; it's been <em>inserted</em></li>
+</ul>
+<p id="p8">After I'd written the first Haskell version I was skeptical. The Python version uses some typical Python idioms, like <code>if b</code> for checking for empty strings, using the same syntax for accessing lists and sets, and overloading the <code>or</code> operator to look for the first non-empty set, and Haskell doesn't have these same shortcuts. However the latest set of revisions makes the the core algorithm in the Haskell version more readable than the Python equivalent.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+ <a href="../1">« Previous Page</a>
+  --  
+ <a href="../3">Next Page »</a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

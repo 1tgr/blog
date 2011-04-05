@@ -1,0 +1,206 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+
+
+
+
+<div class="blog_post" id="movable-type-on-ec2">
+  <a class="blog_post_title" name="Movable Type on EC2" />
+  <h2 class="blog_post_title"><a href="/blog/2010/04/movable-type-on-ec2.html" rel="bookmark" title="Permanent Link to Movable Type on EC2">Movable Type on EC2</a></h2>
+  <small>April 18, 2010 at 08:00 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2010/04/movable-type-on-ec2.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">I'm a big fan of virtual servers and I've always run this web site from one. Until recently I had it on a <a href="http://www.partario.com/blog/2009/04/first-post.html">VMware instance on my home PC</a>, although <a href="http://www.partario.com/blog/2010/03/a-render-farm-in-haskell.html">my recent experience with Amazon EC2</a> and a couple of large traffic spikes prompted me to move it.</p>
+<p id="p2">In the end the process turned out to be pretty easy:</p>
+<ol>
+<li>Back up to Amazon S3 using <a href="http://duplicity.nongnu.org/">duplicity</a>:</li>
+<li>MySQL dump: <code>mysqldump --all-databases</code></li>
+<li>/etc/apache2</li>
+<li>/var/www</li>
+<li>Start an EC2 small instance running AMI Ubuntu 9.04 (ami-ccf615a5)</li>
+<li>Restore from Amazon S3</li>
+<li><code>apt-get -y install apache2 duplicity libapache2-mod-perl2 libdbd-mysql-perl libdbi-perl mysql-server perlmagick python-boto</code></li>
+<li>Restore MySQL dump, /etc/apache2 and /var/www using duplicity</li>
+<li>Run MySQL script against the local instance</li>
+<li>Start Apache. Check whether the static HTML pages and Movable Type's admin interface work.</li>
+<li>Assign an Amazon elastic IP address to the EC2 instance. This gives me a static IP address that I can refer to from DNS.</li>
+<li>Remap the DNS alias (an A record and a CNAME record) via my ISP's web site</li>
+<li>Done!</li>
+</ol>
+<p id="p3">I'm happy with the changes so far:</p>
+<ul>
+<li>Performance has been fine: although publishing the site now takes 30 seconds not 15, I'm getting much better response times and bandwidth</li>
+<li>I'm paying to run an EC2 instance full time whereas before I was just paying for home power bills</li>
+<li>I'm not going to get shot by my ISP next time one of my posts appears on Reddit</li>
+</ul>
+<p id="p4">The fact that I was taking daily backups made the move risk-free. It took a couple of attempts to get a working site on the EC2 server, but I was able to start a fresh instance and restore from backup each time. I also know that, if the site does fall over in future, restoring from backup will take a few minutes and I'll lose one day of data at most.</p>
+
+  </span>
+</div>
+
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_url = "http://www.partario.com/blog/2010/04/movable-type-on-ec2.html";
+</script>
+<script type="text/javascript" src="http://disqus.com/forums/timrobinson/embed.js"></script>
+<noscript><a href="http://timrobinson.disqus.com/?url=ref">View the discussion thread.</a></noscript><a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

@@ -1,0 +1,222 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+
+
+
+
+<div class="blog_post" id="an-improved-spelling-corrector-in-haskell">
+  <a class="blog_post_title" name="An improved spelling corrector in Haskell" />
+  <h2 class="blog_post_title"><a href="/blog/2009/11/an-improved-spelling-corrector-in-haskell.html" rel="bookmark" title="Permanent Link to An improved spelling corrector in Haskell">An improved spelling corrector in Haskell</a></h2>
+  <small>November 01, 2009 at 11:09 AM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><a href="http://www.partario.com/blog/2009/10/a-spelling-corrector-in-haskell.html">My previous post</a> came up on the <a href="http://www.reddit.com/r/haskell/comments/9zowr/a_spelling_corrector_in_haskell/">Haskell Reddit</a> yesterday, and I got some great suggestions for improvements to the program, which <a href="http://github.com/timrobinson/spell-correct/blob/master/Correct.hs">I've checked into GitHub</a>.</p>
+<ul>
+<li>
+<p id="p2"><code>Map.fromListWith</code> replaces <code>List.foldl'</code> and <code>Map.insertWith'</code>. <a href="http://www.haskell.org/ghc/docs/latest/html/libraries/containers/Data-Map.html#v%3AfromListWith"><code>fromListWith</code></a> appears to be specifically designed for aggregating values that share a common key (in .NET terminology it's the <a href="http://msdn.microsoft.com/en-us/library/bb534501.aspx"><code>GroupBy</code></a> function).</p>
+</li>
+<li>
+<p id="p3">I'll commonly use a construct like <code>readFile "big.txt" &gt;&gt;= return . train . lowerWords</code>, to bind a monad value <code>readFile "big.txt"</code> to a function <code>(train . lowerWords)</code>, then produce a new monad value with <code>return</code>. A shorter way to write this is <code>fmap (train . lowerWords) (readFile "big.txt")</code>, or, with an import from Control.Applicative, <code>(train . lowerWords &lt;$&gt; readFile "big.txt")</code>.</p>
+</li>
+<li>
+<p id="p4">You can replace the lambda syntax <code>(\w -&gt; Map.lookup w nwords)</code> with an operator section, <code>('Map.lookup' nwords)</code>. You might see this more commonly as <code>(+1)</code> in place of <code>(\x -&gt; x + 1)</code>; it's the same thing. <strong class="alt">Edit:</strong> the challenging Markdown syntax means that you'll have to imagine the single quotes around <code>Map.lookup</code> replaced with backticks, `.</p>
+</li>
+</ul>
+<p id="p5">I should have realised this at the time, but it didn't occur to me that <a href="http://www.haskell.org/onlinereport/exps.html#list-comprehensions">you can use full pattern-matching syntax in the right-hand side of a Haskell list comprehension</a>. If the match fails on some element then that element is filtered out. We can use this to improve on the Python version of the <code>edits1</code> function: whereas the Python version combines its <code>b[0]</code> subscripts with an <code>if b</code> check, the Haskell version can use pattern matching to do both. We can also use the <code>inits</code> and <code>tails</code> functions to build substrings instead of brute-force applications of <code>take</code> and <code>drop</code>.</p>
+<div class="pygments_murphy"><pre># Python
+def edits1(word):
+   s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
+   deletes    = [a + b[1:] for a, b in s if b]
+   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)&gt;1]
+   replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
+   inserts    = [a + c + b     for a, b in s for c in alphabet]
+   return set(deletes + transposes + replaces + inserts)
+
+&gt; -- Haskell
+&gt; edits1 word = let s = zip (inits word) (tails word)
+&gt;                   deletes    = [ a ++ y     | (a, _:y  ) &lt;- s ]
+&gt;                   transposes = [ a ++ y:x:z | (a, x:y:z) &lt;- s ]
+&gt;                   replaces   = [ a ++ c:y   | (a, _:y  ) &lt;- s, c &lt;- alphabet ]
+&gt;                   inserts    = [ a ++ c:x   | (a, x    ) &lt;- s, c &lt;- alphabet ]
+&gt;                in Set.fromList $ concat [ deletes, transposes, replaces, inserts ]
+</pre></div>
+
+<p id="p6">The <code>edits1</code> function is the densest one in both the Python and Haskell versions. It's the one where the intent of the code was least clear to me when I originally saw it, probably because of the extra clutter in the list comprehensions. In the latest Haskell revision it's more obvious what's going on.</p>
+<p id="p7">I've consistently used the names <code>x</code>, <code>y</code> and <code>z</code> for the first three parts of the word's suffix. Because they consistently stand for the same thing, any inconsistencies jump out at you when you read the code:</p>
+<ul>
+<li><code>a ++ y</code> stands out because <code>x</code> is missing; it's been <em>deleted</em>. (<code>x</code> isn't even mentioned in the pattern match.)</li>
+<li><code>a ++ y:x:z</code> stands out because <code>x</code> and <code>y</code> are the wrong way round; we're <em>transposing</em> them</li>
+<li><code>a ++ c:y</code> stands out because we've got <code>c</code> instead of <code>x</code>; <code>x</code> has been <em>replaced</em>. (Again, <code>x</code> has dropped out of the pattern match.)</li>
+<li><code>a ++ c:x</code> has <code>c</code> in front of <code>x</code>; it's been <em>inserted</em></li>
+</ul>
+<p id="p8">After I'd written the first Haskell version I was skeptical. The Python version uses some typical Python idioms, like <code>if b</code> for checking for empty strings, using the same syntax for accessing lists and sets, and overloading the <code>or</code> operator to look for the first non-empty set, and Haskell doesn't have these same shortcuts. However the latest set of revisions makes the the core algorithm in the Haskell version more readable than the Python equivalent.</p>
+
+  </span>
+</div>
+
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_url = "http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html";
+</script>
+<script type="text/javascript" src="http://disqus.com/forums/timrobinson/embed.js"></script>
+<noscript><a href="http://timrobinson.disqus.com/?url=ref">View the discussion thread.</a></noscript><a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

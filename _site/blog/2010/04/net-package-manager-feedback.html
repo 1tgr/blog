@@ -1,0 +1,194 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+
+
+
+
+<div class="blog_post" id=".net-package-manager-feedback">
+  <a class="blog_post_title" name=".NET package manager feedback" />
+  <h2 class="blog_post_title"><a href="/blog/2010/04/net-package-manager-feedback.html" rel="bookmark" title="Permanent Link to .NET package manager feedback">.NET package manager feedback</a></h2>
+  <small>April 19, 2010 at 06:19 PM | categories: 
+
+<a href='/blog/category/npackage'>NPackage</a>
+ | <a href="http://www.partario.com/blog/2010/04/net-package-manager-feedback.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">I don't seem to be the first one to be having problems keeping track of his .NET binaries:</p>
+<ul>
+<li><a href="http://twitter.com/TheColonial/status/12416813543">OJ offered to build one</a> :)</li>
+<li>John Mandia poined me towards several Java-based tools: <a href="http://www.jfrog.org/products.php">Artifactory</a>, <a href="http://www.anthillpro.com/html/default.html">Antill Pro</a> and <a href="http://nexus.sonatype.org/">Nexus</a>. Of these, Artifactory and Nexus are open source. Of course, Apache <a href="http://maven.apache.org/">Maven</a> is a fairly well-known Java packaging tool.</li>
+<li><a href="http://twitter.com/jimmcslim/status/12417586016">James Webster showed me</a> the <a href="http://vsdm.codeplex.com/Wikipage">Visual Studio Dependencies Manager</a>, an addin for Visual Studio 2003.</li>
+</ul>
+<p id="p2">Finally, <a href="http://www.partario.com/blog/2010/04/can-i-have-a-net-package-manager.html#comment-39">Terry Spitz</a> had some fairly enthusiastic feedback:</p>
+<blockquote>
+<p id="p3">hell yes! we've got various vbscripts to do this. shouldn't it be 'easy' in say MSI (if too heavyweight), or powershell. additional points if it can handle multi-level caching, i.e. cross-region or internet code is cached on a team share as well as locally.</p>
+</blockquote>
+<p id="p4">Windows Installer occurred to me when I started thinking about this. However, I think such a tool should be limited to deploying assemblies to a particular project's source tree -- deploying them via MSIs suggests putting them into a central location on each machine, and I predict that individual projects will start interfering with each other this way, particularly on a build server. On the other hand, Windows Installer does have the concept of <a href="http://en.wikipedia.org/wiki/Merge_module">merge modules</a>: mini MSIs for software components that get merged into the final application installer.</p>
+<p id="p5">Terry's multi-level caching idea is nice. There should definitely be local team and Internet repositories. Additionally, geographically distributed teams probably want local caches to keep overhead to a minimum. And I noticed that my Amazon-based web server cleverly goes to a special Ubuntu package repository hosted on S3, which keeps things quick and hopefully reduces my bandwidth costs.</p>
+
+  </span>
+</div>
+
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_url = "http://www.partario.com/blog/2010/04/net-package-manager-feedback.html";
+</script>
+<script type="text/javascript" src="http://disqus.com/forums/timrobinson/embed.js"></script>
+<noscript><a href="http://timrobinson.disqus.com/?url=ref">View the discussion thread.</a></noscript><a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

@@ -1,6 +1,6 @@
 *.pyc
 *~
-_site/*
+index.xml
 _documentation/themes/blogofile/layout.html
 \#*
 .#*

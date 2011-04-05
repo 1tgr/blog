@@ -1,0 +1,275 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+
+
+
+
+<div class="blog_post" id="control-flow-graph-v0.1:-tail-recursion">
+  <a class="blog_post_title" name="Control flow graph v0.1: Tail recursion" />
+  <h2 class="blog_post_title"><a href="/blog/2009/08/control-flow-graph-v01-tail-recursion.html" rel="bookmark" title="Permanent Link to Control flow graph v0.1: Tail recursion">Control flow graph v0.1: Tail recursion</a></h2>
+  <small>August 02, 2009 at 11:34 AM | categories: 
+
+<a href='/blog/category/compiler'>Compiler</a>
+ | <a href="http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">In <a href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html">my last Lisp compiler post</a>, I talked about what I might need to do in order to support tail-recursive calls. I came to the conclusion that my compiler need to start describing the program as a graph of linked basic blocks.</p>
+<p id="p2">To summarise, a basic block obeys two rules:</p>
+<ul>
+<li>It has a single entry point: the program isn't allowed to branch into the middle of the block</li>
+<li>It has a single exit point: the block always contains a single branch instruction, which appears at the end</li>
+</ul>
+<p id="p3">For instance, here's a graph of a program that uses a recursive <code>factorial</code> function:</p>
+<div class="pygments_murphy"><pre>(define (factorial n)
+  (if (= n 0) 
+    1 
+    (* n (factorial (- n 1)))))
+(Console.WriteLine (factorial 6))
+</pre></div>
+
+<p id="p4"><span class="mt-enclosure mt-enclosure-image" style="display: inline;"><img alt="Factorial.png" src="http://www.partario.com/blog/2009/08/02/Factorial.png" width="543" height="643" class="mt-image-none" style=""/></span></p>
+<p id="p5">Here I've marked graph edges with a .NET branch instruction (in this case, <code>br</code>, <code>beq</code> or <code>ret</code>). These edges link the graph's nodes -- the basic blocks -- which is where the other instructions in the program appear. A block doesn't need to contain any instructions; for instance, the <em>then</em> and <em>else</em> branches of the <code>if</code> block both lead unconditionally to a single empty block, which in turn exits the function.</p>
+<p id="p6">To represent the data structures in the graph I added three F# types to the compiler. All of them are immutable apart from <code>ILBlock</code>'s <code>Branch</code> field, which I made mutable in order to allow circular references between blocks:</p>
+<ul>
+<li><code>ILOpCode</code>: a discriminated union with one case for each IL opcode that can appear inside a block -- <code>Add</code>, <code>Box of Type</code>, <code>Call of MethodInfo</code>, etc. Note that <code>call</code> is not considered a branching opcode for these purposes, since it doesn't interrupt the control flow.</li>
+<li><code>ILBranchOpCode</code>: a discriminated union with one case for each IL opcode that can appear at the end of a block - <code>Beq of ILBlock * ILBlock</code>, <code>Br of ILBlock</code>, <code>Brtrue of ILBlock * ILBlock</code>, <code>NoBranch</code> and <code>Ret</code>. The values for <code>Beq</code> and <code>Brtrue</code> specify both branch possibilities. Each <code>ILBranchOpCode</code> represents an edge in the graph.</li>
+<li><code>ILBlock</code>: a record containing a list of <code>IlOpCode</code> and a mutable <code>ILBranchOpCode</code> field. Each <code>ILBlock</code> represents a basic block; that is, a node in the graph that can be linked by two or more <code>ILBranchOpCode</code>s.</li>
+</ul>
+<p id="p7">These new data structures now allow me to split the code concerned with IL generation into two parts: a large function that turns the abstract syntax tree into a graph of basic blocks, and a class that takes this graph and uses it to emit IL code through an <code>ILGenerator</code>. (Actually there are two of these classes -- <code>DynamicMethodTarget</code> and <code>MethodBuilderTarget</code> -- because there is no common base between the two classes .NET provides to instantiate an <code>ILGenerator</code>.)</p>
+<p id="p8">I won't list out the code in full, since I've submitted it to GitHub (<a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core/CodeGenerator.fs">CodeGeneration.fs</a>) and because it's got broadly the same structure as <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html">the last time I posted it</a>. The difference is that most of the work is performed by a <code>makeBlock</code> function:</p>
+<div class="pygments_murphy"><pre><span class="k">val</span> <span class="n">makeBlock</span> <span class="o">:</span> <span class="nc">IILTarget</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">-&gt;</span> <span class="nc">LispVal</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">*</span> <span class="nc">ILBlock</span> <span class="o">*</span> <span class="nc">ILBlock</span>
+</pre></div>
+
+<p id="p9">The purpose of this function is to:</p>
+<ul>
+<li>Accept an <code>IILTarget</code>, an interface capable of defining new methods and local variables; a map, which contains the environment at this point in the program; and a <code>LispVal</code>, which represents one line of code</li>
+<li>Return a new environment, which could be modified version of the one passed in; and two <code>ILBlock</code> instances, which represent the head and tail of a new subgraph</li>
+</ul>
+<p id="p10">Normally <code>makeBlock</code> will construct only a single block, in which case both the same block object will be returned twice. An <code>if</code> form is more complicated, in that it consists of a diamond shape: the block that contains the code for the test can branch to either the <em>then</em> or the <em>else</em> block, both of which eventually branch back to the same location so that the program can continue. When generating code for an <code>if</code>, <code>makeBlock</code> will return the blocks at the top and bottom of the diamond, ready to be linked together with the rest of the program. (The edges between the <em>then</em> and <em>else</em> blocks are already added.)</p>
+<p id="p11">Now the the clever part: because we've got the program's structure and code as a graph in memory, we can do some more interesting optimisations. The process of turning this graph into IL goes as follows:</p>
+<ol>
+<li>Iterate through the graph and assign a IL label to each block. With a depth-first recursive search we have to be careful not to get stuck in a circular reference: to avoid this we keep track of blocks we've already encountered.</li>
+<li>Iterate through the graph again: generate instructions for each block, followed by an instruction for the block's branch</li>
+</ol>
+<p id="p12">Take a look at the diagram at the top of this post. Because the diagram doesn't assume a particular ordering of the instructions in memory -- for instance, it doesn't specify whether <em>then</em> or <em>else</em> comes first -- some of its branch instructions are redundant. To generate somewhat sensible IL we have to do some basic optimisations in step (2):</p>
+<ul>
+<li><span class="alt">Case A:</span> If step (1) put two blocks next to each other in memory, we don't need to insert a <code>br</code> instruction between them. Recall that <code>br</code> is an unconditional jump instruction; by leaving it out, we cause the program to fall through from one block to the next.</li>
+<li><span class="alt">Cases B and C:</span> Likewise, use the ordering of the blocks to drop one of the targets of <code>beq</code> and replace it with a fall through</li>
+<li><span class="alt">Case D:</span> If block branches to its target using <code>br</code>, and its target contains no instructions and ends in <code>ret</code>, insert a <code>ret</code> instruction directly</li>
+</ul>
+<p id="p13">These rules give us a nice opportunity to use pattern matching -- note how the structure of the code is similar to my explanation above:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Given</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">blocks</span><span class="o">:</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">branch</span> <span class="n">is</span> <span class="n">the</span> <span class="nc">ILBranchOpCode</span> <span class="k">of</span> <span class="n">the</span> <span class="n">first</span> <span class="n">block</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">otherBlocks</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="n">containing</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">blocks</span>
+<span class="k">match</span> <span class="n">branch</span><span class="o">,</span> <span class="n">otherBlocks</span> <span class="k">with</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="n">target</span><span class="o">,</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">target</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">A</span>
+    <span class="bp">()</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">equalTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">B</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Bne_Un</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">notEqualTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">notEqualTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">C</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Beq</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">equalTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="o">{</span> <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">},</span> <span class="o">_-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">D</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ret</span><span class="o">)</span>
+<span class="o">|</span> <span class="n">branchOpCode</span><span class="o">,</span> <span class="o">_</span> <span class="o">-&gt;</span>    <span class="o">//</span> <span class="nc">None</span> <span class="k">of</span> <span class="n">the</span> <span class="n">above</span> <span class="n">apply</span>
+    <span class="n">emitBranch</span> <span class="n">labels</span> <span class="n">branchOpCode</span>
+</pre></div>
+
+<p id="p14">Finally -- and here's what I've been building up to with these last couple of posts -- we can implement tail call recursion, using the <code>tail.call</code> prefix. Our graph data structures allow us to literally look for the situation that the IL spec requires: a <code>call</code> instruction immediately followed by <code>ret</code>. In our case, this happens when a block's branch is <code>Ret</code>, and the last instruction of that block is <code>Call</code>:</p>
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">emitInstructions</span> <span class="n">block</span> <span class="o">=</span> 
+    <span class="k">let</span> <span class="n">isRetBlock</span> <span class="o">=</span>
+        <span class="o">//</span> <span class="nc">A</span> <span class="n">slight</span> <span class="n">hack</span><span class="o">:</span> <span class="n">due</span> <span class="k">to</span> <span class="n">the</span> <span class="n">above</span> <span class="n">optimisations</span><span class="o">,</span>
+        <span class="o">//</span>  <span class="n">there's</span> <span class="n">a</span> <span class="n">couple</span> <span class="k">of</span> <span class="n">ways</span> <span class="k">of</span> <span class="n">emitting</span> <span class="n">a</span> <span class="nc">Ret</span>
+        <span class="k">match</span> <span class="n">block</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Br</span> <span class="o">{</span>
+            <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> 
+            <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">false</span>
+    <span class="k">function</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="nc">Call</span> <span class="o">_</span> <span class="k">as</span> <span class="n">instruction</span> <span class="o">]</span> <span class="k">when</span> <span class="n">isRetBlock</span> <span class="o">-&gt;</span>
+        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Tailcall</span><span class="o">)</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+    <span class="o">|</span> <span class="n">instruction</span> <span class="o">::</span> <span class="n">otherInstructions</span> <span class="o">-&gt;</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+        <span class="n">emitInstructions</span> <span class="n">block</span> <span class="n">otherInstructions</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span>
+        <span class="bp">()</span>
+</pre></div>
+
+<p id="p15">By reorganising my compiler to support tail recursion I've learned that:</p>
+<ul>
+<li>Changing your data structures (in this case, implementing a control flow graph) can often make a previously difficult algorithm (tail call detection) straightforward</li>
+<li>If you haven't got any unit tests, you're not refactoring, you're just changing stuff. I've now written <a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core.UnitTests/CompilerTests.fs">unit tests for the main features supported by the compiler</a>. As an aside, I think NUnit tests written in F# look nicer than their C# equivalents, although I was slightly disappointed that NUnit made me write a class with instance methods, whereas it would have been neater to have some functions for test cases defined directly inside an F# module.</li>
+<li>Writing a blog post on a topic before attempting it is a great way to get your thoughts clear in your head before starting</li>
+</ul>
+<p id="p16">What I might look at next is some more sophisticated algorithms over the control flow graph. Once you have a graph you make available a whole field of algorithms to use on your data. I haven't looked at it yet in detail, but I like Steve Horsfield's <a href="http://stevehorsfield.wordpress.com/2009/07/27/f-a-data-structure-for-modelling-directional-graphs/">data structure for modelling directional graphs</a>.</p>
+
+  </span>
+</div>
+
+
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+  var disqus_url = "http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html";
+</script>
+<script type="text/javascript" src="http://disqus.com/forums/timrobinson/embed.js"></script>
+<noscript><a href="http://timrobinson.disqus.com/?url=ref">View the discussion thread.</a></noscript><a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+

@@ -1,0 +1,597 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    
+  <title>Tim Robinson</title>
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="/blog/feed" />
+<link rel="alternate" type="application/atom+xml" title="Atom 1.0"
+href="/blog/feed/atom" />
+
+<link rel='stylesheet' href='/css/pygments_murphy.css' type='text/css' />
+<link rel='stylesheet' href='/css/pygments_monokai.css' type='text/css' />
+<link rel='stylesheet' href='/css/site.css' type='text/css' />
+<link rel='stylesheet' href='/css/documentation.css' type='text/css' />
+<link rel='stylesheet' href='/css/jquery.tweet.css' type='text/css' />
+
+<script type="text/javascript" src="/js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="/js/jquery.tweet.js"></script>
+<script type="text/javascript" src="/js/googleRSSWidget.js"></script>
+<script type="text/javascript" src="/js/site.js"></script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-8369986-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+  </head>
+  <body>
+    <div id="content">
+      
+  
+<div id="top_bar">
+  <div class="ButtonBar">
+      <div id="plugbanner"></div>
+      <div id="blog_logo"></div>
+      <h1><a href="/blog/">
+          <span id="blog_name">
+            Tim Robinson
+          </span>
+        </a>
+      </h1>
+  </div>
+  <div id="search">    
+    <form id="searchform" method="get" action="http://www.google.com/search">
+      <input type="hidden" name="ie" value="UTF-8">
+      <input type="hidden" name="oe" value="UTF-8">
+      <input type="hidden" name="domains" value="www.partario.com">
+      <input type="hidden" name="sitesearch" value="www.partario.com">
+      <input name="q" id="q" size="20" value="search in blog..." onfocus="if(this.value==this.defaultValue) this.value='';" type="text">
+    </form>
+  </div>
+</div>
+
+
+      <div id="main_block">
+        <div id="prose_block">
+          
+  
+
+
+
+<div class="blog_post" id="a-spelling-corrector-in-haskell">
+  <a class="blog_post_title" name="A spelling corrector in Haskell" />
+  <h2 class="blog_post_title"><a href="/blog/2009/10/a-spelling-corrector-in-haskell.html" rel="bookmark" title="Permanent Link to A spelling corrector in Haskell">A spelling corrector in Haskell</a></h2>
+  <small>October 31, 2009 at 03:07 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2009/10/a-spelling-corrector-in-haskell.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><strong class="alt">Update:</strong> Thanks to the commenters on this blog and on Reddit, I've got <a href="http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html">a much improved and more readable Haskell port</a> of the spelling corrector.</p>
+<p id="p2">On Wednesday I attended the <a href="http://stackoverflow.carsonified.com/events/london/">StackOverflow DevDay</a> in London, which was a day of excellent talks by engaging speakers. Michael Sparks gave a talk on Python, where he built up <a href="http://www.norvig.com/spell-correct.html">Peter Norvig's spelling corrector</a> line by line as we watched. I was impressed by how easy it was to understand the source code, and the style struck me as being particularly functional. So, I was compelled to translate the Python source into Haskell.</p>
+<p id="p3">This post is also a Literate Haskell program, meaning that you should be able to copy the text from the page, paste it into a <code>.lhs</code> file, and compile it. Snippets starting with <code>&gt;</code> are Haskell; in between is Peter's original program, and my commentary on the differences.</p>
+<div class="pygments_murphy"><pre># Python code looks like this:
+import re, collections
+
+&gt; -- Haskell code looks like this:
+&gt; module Tim.Spell.Correct where
+&gt;
+&gt; import Char
+&gt; import qualified Data.List as List
+&gt; import qualified Data.Map as Map
+&gt; import qualified Data.Set as Set
+&gt; import Data.Ord
+&gt; import List
+</pre></div>
+
+<p id="p4">Every language needs some imports. The Python program only has two; we're using a scattering of functions outside of the prelude (Haskell's standard library), so we need to import a bit more:</p>
+<ul>
+<li><code>Char</code> gives us <code>toLower</code> and <code>isAlpha</code></li>
+<li><code>Data.List</code> gives us <code>foldl'</code></li>
+<li><code>Data.Map</code> gives us the <code>Map</code> type</li>
+<li><code>Data.Set</code> gives us the <code>Set</code> type</li>
+<li><code>Data.Ord</code> gives us the <code>comparing</code> function</li>
+<li><code>List</code> gives us <code>maximumBy</code></li>
+</ul>
+<div class="pygments_murphy"><pre>def words(text): return re.findall('[a-z]+', text.lower())
+
+&gt; lowerWords = filter (not . null) . map (map toLower . filter isAlpha) . words
+</pre></div>
+
+<p id="p5">The Haskell prelude already has a function called words, which splits a string by spaces. <code>filter isAlpha</code> and <code>filter (not . null)</code> approximate the Python regular expression:</p>
+<ul>
+<li><code>filter isAlpha</code> drops all characters outside of a-z</li>
+<li><code>filter (not . null)</code> excludes any empty strings (such as sequences of numbers or punctuation in the original text)</li>
+</ul>
+<div class="pygments_murphy"><pre>def train(features):
+    model = collections.defaultdict(lambda: 1)
+    for f in features:
+        model[f] += 1
+    return model
+
+&gt; train = List.foldl' (\dict word -&gt; Map.insertWith' (+) word (1::Int) dict) Map.empty 
+</pre></div>
+
+<p id="p6">Haskell doesn't need an explicit loop here: we use <code>foldl'</code> to iterate over the list of words and add each one to a map. The <code>Map.insertWith'</code> function either inserts a value (if missing), or extracts the existing value, applies it to a function, and inserts the result back in the map.</p>
+<div class="pygments_murphy"><pre>NWORDS = train(words(file('big.txt').read()))
+
+&gt; readNWORDS = readFile "big.txt" &gt;&gt;= return . train . lowerWords
+</pre></div>
+
+<p id="p7">A big difference in the Haskell version is that file I/O is encapsulated in an IO monad. So whereas Python's <code>NWORDS</code> variable is an actual dictionary, <code>readNWORDS</code> is a I/O value that, when executed, reads and parses a file and yields a dictionary.</p>
+<div class="pygments_murphy"><pre>alphabet = 'abcdefghijklmnopqrstuvwxyz'
+
+&gt; alphabet = [ 'a' .. 'z' ]
+</pre></div>
+
+<p id="p8">I put a cheeky shortcut in the Haskell version. (It makes no difference to the line count.)</p>
+<div class="pygments_murphy"><pre>def edits1(word):
+   s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
+   deletes    = [a + b[1:] for a, b in s if b]
+   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)&gt;1]
+   replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
+   inserts    = [a + c + b     for a, b in s for c in alphabet]
+   return set(deletes + transposes + replaces + inserts)
+
+&gt; edits1 word =
+&gt;     let s = [ (take i word, drop i word) | i &lt;- [ 0 .. length word ] ]
+&gt;         deletes    = [ a ++ tail b | (a, b) &lt;- s, not $ null b ]
+&gt;         transposes = [ a ++ b!!1 : b!!0 : drop 2 b | (a, b) &lt;- s, not $ null b, not $ null $ tail b ]
+&gt;         replaces   = [ a ++ c : tail b | (a, b) &lt;- s, c &lt;- alphabet, not $ null b ]
+&gt;         inserts    = [ a ++ c : b | (a, b) &lt;- s, c &lt;- alphabet ]
+&gt;     in Set.fromList (deletes ++ transposes ++ replaces ++ inserts)
+</pre></div>
+
+<p id="p9">The Haskell and Python versions of this function are fairly close. The main differences:</p>
+<ul>
+<li>Haskell uses the <code>let</code> ... <code>in</code> keywords to declare values</li>
+<li>List comprehension syntax is very similar, if you replace Python's <code>for</code> and <code>in</code> with Haskell's <code>|</code> and <code>&lt;-</code>. (Recurring theme: Haskell prefers symbols to keywords.)</li>
+<li><code>[ start .. end ]</code> is Haskell's built-in range syntax. It's lazy, and generates elements only on demand, which means it's fine to construct an infinite list like this: <code>[ 1 .. ]</code></li>
+<li>Python has neat string slicing syntax:</li>
+<li><code>[:i]</code> is replaced with <code>take i</code>, to take the first _i_ characters</li>
+<li><code>[i:]</code> is replaced with <code>drop i</code>, to take all but the first _i_ characters</li>
+<li>Subscripts can be replaced with the <code>!!</code> operators, which does the same thing, but with O(_N_) complexity. Remember Haskell's strings are lists of characters, not arrays (although see <code>Data.ByteString</code>).</li>
+<li>Python's <code>if</code> keyword maps to different things depending on the context. Here it's used to ask 'is the string empty?', and we replace it with the <code>not</code> and <code>null</code> functions.</li>
+<li><code>++</code> and <code>:</code> stand in for Python's <code>+</code> operator, depending on whether we're concatenating two lists (<code>a ++ b</code>) or pushing a single element onto the start of a list (<code>head : tail</code>)</li>
+</ul>
+<p id="p10">I'm not totally convinced about the performance of the Haskell version, since <code>take</code> and <code>drop</code> are O(<em>N_) and not O(1). However, _N</em> is small here, being the length of a word. If it's a problem we could use <code>ByteString</code> instead for O(1) complexity at the price of having to copy strings.</p>
+<div class="pygments_murphy"><pre>def known_edits2(word):
+    return set(e2 for e1 in edits1(word) for e2 in edits1(e1) if e2 in NWORDS)
+
+&gt; known_edits2 knownWords = Set.unions . Set.elems . Set.map (Set.intersection knownWords . edits1) . edits1
+</pre></div>
+
+<p id="p11">Here I replaced the Python list comprehensions with Haskell's built-in set functions. We can't iterate directly over a set in Haskell, so if we used a list comprehension here, we'd to use <code>elems</code> to produce a list from the set and <code>fromList</code> to turn the result into a set again. Here I feel that the Python version demonstrates the intent more clearly, which is to produce a set of edits from <code>edit1</code>, then run those through <code>edit1</code> again, and keep only the edits that turn out to be real words.</p>
+<p id="p12">Read from right to left, what the Haskell version does is:</p>
+<ul>
+<li>Produces a set of edits to a word using <code>edit1</code></li>
+<li>For each edit in the set, produce another set of edits using <code>edit1</code>, and keep only those edits-of-edits that can be found in <code>knownWords</code>. We now have a set of sets.</li>
+<li>Turn a set of sets into a list of sets, using <code>elems</code></li>
+<li>Collapse that list of sets into a single set of words using <code>unions</code></li>
+</ul>
+<div class="pygments_murphy"><pre>def known(words): return set(w for w in words if w in NWORDS)
+
+&gt; -- no Haskell equivalent
+</pre></div>
+
+<p id="p13">The <code>known</code> function actually disappears in the Haskell version. Because it takes a set of known words instead of a map of word frequencies, it turns into a direct call to <code>intersection</code> lower down.</p>
+<div class="pygments_murphy"><pre>def correct(word):
+    candidates = known([word]) or known(edits1(word)) or known_edits2(word) or [word]
+    return max(candidates, key=NWORDS.get)
+
+&gt; correct nwords word = 
+&gt;     let knownWords = Map.keysSet nwords
+&gt;         candidates = Set.elems
+&gt;                    $ head
+&gt;                    $ filter (not . Set.null)
+&gt;                    $ [ Set.intersection knownWords $ Set.singleton word,
+&gt;                        Set.intersection knownWords $ edits1 word,
+&gt;                        known_edits2 knownWords word,
+&gt;                        Set.singleton word ]
+&gt;       in maximumBy (comparing (\w -&gt; w `Map.lookup` nwords)) candidates
+</pre></div>
+
+<p id="p14">Python has a magic short-circuiting <code>or</code> operator, which we have to fake by putting together a list of sets and finding the first non-empty one. Because Haskell is lazy this does in fact short-circuit: for instance, we never make a call to <code>known_edits2</code> if we can already find <code>word</code> in <code>knownWords</code>.</p>
+<p id="p15">I'm not a fan of <code>maximumBy</code> in Haskell, which makes you compare two items yourself; I prefer the Python version, which is similar to .NET's <code>OrderBy</code> function. Here, though, the <code>comparing</code> function in <code>Data.Ord</code> makes the code a little less verbose.</p>
+<p id="p16">Finally, here's a little command-line demo that corrects words the user types in. It's only at this point that the Haskell version touches the text file that the Python program encapsulates in the <code>NWORDS</code> variable; the Haskell version passes the dictionary through each function that needs it. I could have done a direct translation of the Python, but this would have meant writing most of the program as imperative IO monad code, which wasn't really the point of the Haskell translation.</p>
+<div class="pygments_murphy"><pre>&gt; prompt nwords = do
+&gt;     eof &lt;- isEOF
+&gt;     if eof
+&gt;       then return ()
+&gt;       else do
+&gt;           getLine &gt;&gt;= putStrLn . correct nwords
+&gt;           prompt nwords
+&gt; 
+&gt; main = readNWORDS &gt;&gt;= prompt
+</pre></div>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/10/a-spelling-corrector-in-haskell.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="control-flow-graph-v0.1:-tail-recursion">
+  <a class="blog_post_title" name="Control flow graph v0.1: Tail recursion" />
+  <h2 class="blog_post_title"><a href="/blog/2009/08/control-flow-graph-v01-tail-recursion.html" rel="bookmark" title="Permanent Link to Control flow graph v0.1: Tail recursion">Control flow graph v0.1: Tail recursion</a></h2>
+  <small>August 02, 2009 at 11:34 AM | categories: 
+
+<a href='/blog/category/compiler'>Compiler</a>
+ | <a href="http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">In <a href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html">my last Lisp compiler post</a>, I talked about what I might need to do in order to support tail-recursive calls. I came to the conclusion that my compiler need to start describing the program as a graph of linked basic blocks.</p>
+<p id="p2">To summarise, a basic block obeys two rules:</p>
+<ul>
+<li>It has a single entry point: the program isn't allowed to branch into the middle of the block</li>
+<li>It has a single exit point: the block always contains a single branch instruction, which appears at the end</li>
+</ul>
+<p id="p3">For instance, here's a graph of a program that uses a recursive <code>factorial</code> function:</p>
+<div class="pygments_murphy"><pre>(define (factorial n)
+  (if (= n 0) 
+    1 
+    (* n (factorial (- n 1)))))
+(Console.WriteLine (factorial 6))
+</pre></div>
+
+<p id="p4"><span class="mt-enclosure mt-enclosure-image" style="display: inline;"><img alt="Factorial.png" src="http://www.partario.com/blog/2009/08/02/Factorial.png" width="543" height="643" class="mt-image-none" style=""/></span></p>
+<p id="p5">Here I've marked graph edges with a .NET branch instruction (in this case, <code>br</code>, <code>beq</code> or <code>ret</code>). These edges link the graph's nodes -- the basic blocks -- which is where the other instructions in the program appear. A block doesn't need to contain any instructions; for instance, the <em>then</em> and <em>else</em> branches of the <code>if</code> block both lead unconditionally to a single empty block, which in turn exits the function.</p>
+<p id="p6">To represent the data structures in the graph I added three F# types to the compiler. All of them are immutable apart from <code>ILBlock</code>'s <code>Branch</code> field, which I made mutable in order to allow circular references between blocks:</p>
+<ul>
+<li><code>ILOpCode</code>: a discriminated union with one case for each IL opcode that can appear inside a block -- <code>Add</code>, <code>Box of Type</code>, <code>Call of MethodInfo</code>, etc. Note that <code>call</code> is not considered a branching opcode for these purposes, since it doesn't interrupt the control flow.</li>
+<li><code>ILBranchOpCode</code>: a discriminated union with one case for each IL opcode that can appear at the end of a block - <code>Beq of ILBlock * ILBlock</code>, <code>Br of ILBlock</code>, <code>Brtrue of ILBlock * ILBlock</code>, <code>NoBranch</code> and <code>Ret</code>. The values for <code>Beq</code> and <code>Brtrue</code> specify both branch possibilities. Each <code>ILBranchOpCode</code> represents an edge in the graph.</li>
+<li><code>ILBlock</code>: a record containing a list of <code>IlOpCode</code> and a mutable <code>ILBranchOpCode</code> field. Each <code>ILBlock</code> represents a basic block; that is, a node in the graph that can be linked by two or more <code>ILBranchOpCode</code>s.</li>
+</ul>
+<p id="p7">These new data structures now allow me to split the code concerned with IL generation into two parts: a large function that turns the abstract syntax tree into a graph of basic blocks, and a class that takes this graph and uses it to emit IL code through an <code>ILGenerator</code>. (Actually there are two of these classes -- <code>DynamicMethodTarget</code> and <code>MethodBuilderTarget</code> -- because there is no common base between the two classes .NET provides to instantiate an <code>ILGenerator</code>.)</p>
+<p id="p8">I won't list out the code in full, since I've submitted it to GitHub (<a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core/CodeGenerator.fs">CodeGeneration.fs</a>) and because it's got broadly the same structure as <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html">the last time I posted it</a>. The difference is that most of the work is performed by a <code>makeBlock</code> function:</p>
+<div class="pygments_murphy"><pre><span class="k">val</span> <span class="n">makeBlock</span> <span class="o">:</span> <span class="nc">IILTarget</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">-&gt;</span> <span class="nc">LispVal</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">*</span> <span class="nc">ILBlock</span> <span class="o">*</span> <span class="nc">ILBlock</span>
+</pre></div>
+
+<p id="p9">The purpose of this function is to:</p>
+<ul>
+<li>Accept an <code>IILTarget</code>, an interface capable of defining new methods and local variables; a map, which contains the environment at this point in the program; and a <code>LispVal</code>, which represents one line of code</li>
+<li>Return a new environment, which could be modified version of the one passed in; and two <code>ILBlock</code> instances, which represent the head and tail of a new subgraph</li>
+</ul>
+<p id="p10">Normally <code>makeBlock</code> will construct only a single block, in which case both the same block object will be returned twice. An <code>if</code> form is more complicated, in that it consists of a diamond shape: the block that contains the code for the test can branch to either the <em>then</em> or the <em>else</em> block, both of which eventually branch back to the same location so that the program can continue. When generating code for an <code>if</code>, <code>makeBlock</code> will return the blocks at the top and bottom of the diamond, ready to be linked together with the rest of the program. (The edges between the <em>then</em> and <em>else</em> blocks are already added.)</p>
+<p id="p11">Now the the clever part: because we've got the program's structure and code as a graph in memory, we can do some more interesting optimisations. The process of turning this graph into IL goes as follows:</p>
+<ol>
+<li>Iterate through the graph and assign a IL label to each block. With a depth-first recursive search we have to be careful not to get stuck in a circular reference: to avoid this we keep track of blocks we've already encountered.</li>
+<li>Iterate through the graph again: generate instructions for each block, followed by an instruction for the block's branch</li>
+</ol>
+<p id="p12">Take a look at the diagram at the top of this post. Because the diagram doesn't assume a particular ordering of the instructions in memory -- for instance, it doesn't specify whether <em>then</em> or <em>else</em> comes first -- some of its branch instructions are redundant. To generate somewhat sensible IL we have to do some basic optimisations in step (2):</p>
+<ul>
+<li><span class="alt">Case A:</span> If step (1) put two blocks next to each other in memory, we don't need to insert a <code>br</code> instruction between them. Recall that <code>br</code> is an unconditional jump instruction; by leaving it out, we cause the program to fall through from one block to the next.</li>
+<li><span class="alt">Cases B and C:</span> Likewise, use the ordering of the blocks to drop one of the targets of <code>beq</code> and replace it with a fall through</li>
+<li><span class="alt">Case D:</span> If block branches to its target using <code>br</code>, and its target contains no instructions and ends in <code>ret</code>, insert a <code>ret</code> instruction directly</li>
+</ul>
+<p id="p13">These rules give us a nice opportunity to use pattern matching -- note how the structure of the code is similar to my explanation above:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Given</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">blocks</span><span class="o">:</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">branch</span> <span class="n">is</span> <span class="n">the</span> <span class="nc">ILBranchOpCode</span> <span class="k">of</span> <span class="n">the</span> <span class="n">first</span> <span class="n">block</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">otherBlocks</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="n">containing</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">blocks</span>
+<span class="k">match</span> <span class="n">branch</span><span class="o">,</span> <span class="n">otherBlocks</span> <span class="k">with</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="n">target</span><span class="o">,</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">target</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">A</span>
+    <span class="bp">()</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">equalTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">B</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Bne_Un</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">notEqualTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">notEqualTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">C</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Beq</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">equalTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="o">{</span> <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">},</span> <span class="o">_-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">D</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ret</span><span class="o">)</span>
+<span class="o">|</span> <span class="n">branchOpCode</span><span class="o">,</span> <span class="o">_</span> <span class="o">-&gt;</span>    <span class="o">//</span> <span class="nc">None</span> <span class="k">of</span> <span class="n">the</span> <span class="n">above</span> <span class="n">apply</span>
+    <span class="n">emitBranch</span> <span class="n">labels</span> <span class="n">branchOpCode</span>
+</pre></div>
+
+<p id="p14">Finally -- and here's what I've been building up to with these last couple of posts -- we can implement tail call recursion, using the <code>tail.call</code> prefix. Our graph data structures allow us to literally look for the situation that the IL spec requires: a <code>call</code> instruction immediately followed by <code>ret</code>. In our case, this happens when a block's branch is <code>Ret</code>, and the last instruction of that block is <code>Call</code>:</p>
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">emitInstructions</span> <span class="n">block</span> <span class="o">=</span> 
+    <span class="k">let</span> <span class="n">isRetBlock</span> <span class="o">=</span>
+        <span class="o">//</span> <span class="nc">A</span> <span class="n">slight</span> <span class="n">hack</span><span class="o">:</span> <span class="n">due</span> <span class="k">to</span> <span class="n">the</span> <span class="n">above</span> <span class="n">optimisations</span><span class="o">,</span>
+        <span class="o">//</span>  <span class="n">there's</span> <span class="n">a</span> <span class="n">couple</span> <span class="k">of</span> <span class="n">ways</span> <span class="k">of</span> <span class="n">emitting</span> <span class="n">a</span> <span class="nc">Ret</span>
+        <span class="k">match</span> <span class="n">block</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Br</span> <span class="o">{</span>
+            <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> 
+            <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">false</span>
+    <span class="k">function</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="nc">Call</span> <span class="o">_</span> <span class="k">as</span> <span class="n">instruction</span> <span class="o">]</span> <span class="k">when</span> <span class="n">isRetBlock</span> <span class="o">-&gt;</span>
+        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Tailcall</span><span class="o">)</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+    <span class="o">|</span> <span class="n">instruction</span> <span class="o">::</span> <span class="n">otherInstructions</span> <span class="o">-&gt;</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+        <span class="n">emitInstructions</span> <span class="n">block</span> <span class="n">otherInstructions</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span>
+        <span class="bp">()</span>
+</pre></div>
+
+<p id="p15">By reorganising my compiler to support tail recursion I've learned that:</p>
+<ul>
+<li>Changing your data structures (in this case, implementing a control flow graph) can often make a previously difficult algorithm (tail call detection) straightforward</li>
+<li>If you haven't got any unit tests, you're not refactoring, you're just changing stuff. I've now written <a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core.UnitTests/CompilerTests.fs">unit tests for the main features supported by the compiler</a>. As an aside, I think NUnit tests written in F# look nicer than their C# equivalents, although I was slightly disappointed that NUnit made me write a class with instance methods, whereas it would have been neater to have some functions for test cases defined directly inside an F# module.</li>
+<li>Writing a blog post on a topic before attempting it is a great way to get your thoughts clear in your head before starting</li>
+</ul>
+<p id="p16">What I might look at next is some more sophisticated algorithms over the control flow graph. Once you have a graph you make available a whole field of algorithms to use on your data. I haven't looked at it yet in detail, but I like Steve Horsfield's <a href="http://stevehorsfield.wordpress.com/2009/07/27/f-a-data-structure-for-modelling-directional-graphs/">data structure for modelling directional graphs</a>.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="obscure-exception-handling-facts">
+  <a class="blog_post_title" name="Obscure exception handling facts" />
+  <h2 class="blog_post_title"><a href="/blog/2009/07/obscure-exception-handling-facts.html" rel="bookmark" title="Permanent Link to Obscure exception handling facts">Obscure exception handling facts</a></h2>
+  <small>July 28, 2009 at 08:22 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2009/07/obscure-exception-handling-facts.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1"><span class="alt">(The second in what seems to be a day of obscure .NET facts)</span></p>
+<p id="p2">While looking at some C++/CLI code in Reflector today at work, we encountered the <code>try ... fault</code> construct.</p>
+<h3>What's a <code>fault</code> block?</h3>
+<p id="p3">It's like a <code>finally</code> block, but it's only entered in the event of an exception.</p>
+<h3>So it's like a <code>catch</code> block, then?</h3>
+<p id="p4">Not exactly: </p>
+<ul>
+<li><code>fault</code> blocks don't have filters like <code>catch</code> blocks do</li>
+<li>At the end of a <code>fault</code> block the exception is implicitly rethrown</li>
+</ul>
+<p id="p5">Supposedly the benefit of a <code>fault</code> block is performance: that <code>throw;</code> statement at the end of a <code>catch</code> block has the same overhead as any other <code>throw</code> statement, whereas <code>finally</code> and <code>fault</code> blocks incur no runtime overhead. The stack is not unwound when a <code>fault</code> block is entered: <code>fault</code> blocks won't appear in the exception stack trace.</p>
+<h3>Where do <code>fault</code> blocks show up?</h3>
+<p id="p6">In the code the C++/CLI compiler emits in order to make sure that local variables have their destructors called in the event of an exception.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/07/obscure-exception-handling-facts.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="obscure-ienumerator-facts">
+  <a class="blog_post_title" name="Obscure IEnumerator facts" />
+  <h2 class="blog_post_title"><a href="/blog/2009/07/obscure-ienumerator-facts.html" rel="bookmark" title="Permanent Link to Obscure IEnumerator facts">Obscure IEnumerator facts</a></h2>
+  <small>July 28, 2009 at 07:06 PM | categories: 
+
+<a href='/blog/category/uncategorized'>Uncategorized</a>
+ | <a href="http://www.partario.com/blog/2009/07/obscure-ienumerator-facts.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">Daniel Fortunov wrote about <a href="http://www.danielfortunov.com/software/$daniel_fortunovs_adventures_in_software_development/2009/07/28/duck_typing">an obscure use of duck typing in the C# spec for enumerators</a>:</p>
+<blockquote>
+<p id="p2">Although it is common to implement [IEnumerable and IEnumerator] when creating an enumerable class, if you were to drop the interfaces but leave the implementation, your class would still be enumerable by foreach. Voila! Duck-typing!</p>
+</blockquote>
+<p id="p3">You can take advantage of this fact for a couple of performance tricks, as demonstrated by many of the standard collection classes in the base class library:</p>
+<ul>
+<li>Declare your <code>IEnumerator&lt;T&gt;</code> implementation as a struct, not a class. This saves you a heap allocation when <code>MoveNext</code> is called.</li>
+<li>Define a <code>Enumerator&lt;T&gt; GetEnumerator()</code> method on your collection class</li>
+<li>Note that you're returning your own struct, not <code>IEnumerable&lt;T&gt;</code>; this avoids a boxing operation. You'll still need to explicitly implement <code>IEnumerator&lt;T&gt; GetEnumerator()</code>, for people who only have an <code>IEnumerable&lt;T&gt;</code> reference to your collection. These performance tricks don't apply when you're making calls through this interface.</li>
+</ul>
+<p id="p4">When somebody uses <code>foreach</code> over your collection, the compiler sees a series of <code>MoveNext</code> calls and accesses to the <code>Current</code> property, and it emits code to call these efficiently on your struct.</p>
+<p id="p5">What's more, the code in your struct's methods is a candidate for <a href="http://blogs.msdn.com/davidnotario/archive/2004/11/01/250398.aspx">inlining by the JIT compiler</a>. The segment of the <code>MoveNext</code> method of <code>System.Collections.Generic.List&lt;T&gt;+Enumerator</code> that can throw an exception is split into its own method, apparently for this reason.</p>
+<p id="p6">I don't claim any kind of definite performance benefits from using these techniques, but it does look like the language designers put some thought into making it possible to use <code>foreach</code> without incurring any overhead compared to some less elegant method.</p>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/07/obscure-ienumerator-facts.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+  
+
+
+
+<div class="blog_post" id="what's-a-control-flow-graph-">
+  <a class="blog_post_title" name="What's a control flow graph?" />
+  <h2 class="blog_post_title"><a href="/blog/2009/07/whats-a-control-flow-graph.html" rel="bookmark" title="Permanent Link to What's a control flow graph?">What's a control flow graph?</a></h2>
+  <small>July 26, 2009 at 12:49 PM | categories: 
+
+<a href='/blog/category/compiler'>Compiler</a>
+ | <a href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html#disqus_thread">View Comments</a>
+  </small>
+  <span class="post_prose">
+    
+  <p id="p1">I'd like to add tail call support to my <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html">Lisp compiler</a>. I can think of two approaches to tail recursion:</p>
+<ul><li>Use the .NET <code>tail.call</code> prefix<ul><li>Translate <code>call</code> followed by <code>ret</code> into <code>tail.call</code> followed by <code>ret</code></li>
+<li>It's easier to spot this pattern if we put IL in our own data structure before emitting it</li>
+<li>Our own data structure needs to represent all the IL we use, including labels (for branching) and local variables</li>
+<li>The label data structure needs a way to represent the target of a branch</li>
+<li><span class="alt">Note:</span> The <code>tail</code> prefix is a hint that the JIT compiler doesn't have to obey - <a href="http://blogs.msdn.com/clrcodegeneration/archive/2009/05/11/tail-call-improvements-in-net-framework-4.aspx">here's a good explanation of the limitations</a></li>
+</ul></li>
+<li>Translate functions that call themselves into loops<ul><li>Our abstract syntax tree doesn't have a way to represent a loop</li>
+<li>As above, it needs an AST capable of representing branches</li>
+<li>The F# compiler does this; it's not able to rely on the <code>tail</code> prefix either</li>
+<li>Can we apply this to functions that call each other recursively? At compile time we might not spot co-recursive functions: F# only allows co-recursive functions if they use the <code>let ... and</code> syntax to define both functions in the same source file.</li>
+</ul></li>
+</ul><p id="p2">The ability to represent loops, and control flow in general, seems to be important in your syntax tree. The <a href="http://llvm.org/">LLVM</a> approach to this is the <a href="http://en.wikipedia.org/wiki/Basic_block">basic block</a>:</p>
+<ul><li>One entry point: no branching into the middle of the block</li>
+<li>One exit point: always contains one branch instruction, at the end</li>
+<li>Basic blocks can be connected to form a control flow graph: blocks are vertices, branch instructions are edges</li>
+<li>Control flow graph is: directed (A branches to B); cyclic (A is allowed to branch to A - this is a loop)</li>
+</ul><p id="p3">How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">An</span> <span class="n">instruction</span> <span class="n">can</span> <span class="n">be</span> <span class="n">a</span> <span class="n">regular</span> <span class="n">opcode</span><span class="o">,</span> 
+<span class="o">//</span>  <span class="ow">or</span> <span class="n">a</span> <span class="n">branch</span> <span class="k">to</span> <span class="n">another</span> <span class="n">basic</span> <span class="n">block</span>
+<span class="k">type</span> <span class="nc">Instruction</span> <span class="o">=</span> <span class="nc">CallInstruction</span> <span class="k">of</span> <span class="nc">MethodInfo</span> <span class="o">*</span> <span class="n">obj</span>
+                 <span class="o">|</span> <span class="nc">Branch</span> <span class="k">of</span> <span class="nc">BasicBlock</span>
+
+<p id="p4"><span class="o">//</span> <span class="nc">A</span> <span class="n">basic</span> <span class="n">block</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">instructions</span>
+<span class="ow">and</span> <span class="nc">BasicBlock</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="k">of</span> <span class="nc">Instruction</span> <span class="kt">list</span>
+</p></pre></div>
+<p id="p5">We have to construct a list of instructions before constructing a basic block. But how do we represent the following?</p>
+<div class="pygments_murphy"><pre><span class="c1">// C# pseudocode</span>
+<span class="k">while</span> <span class="p">(</span><span class="k">true</span><span class="p">)</span>
+    <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"hello"</span><span class="p">);</span>
+</pre></div>
+
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">F</span><span class="o">#</span> <span class="n">abstract</span> <span class="n">syntax</span> <span class="n">tree</span> <span class="k">for</span> <span class="n">the</span> <span class="n">above</span> <span class="nc">C</span><span class="o">#</span>
+<span class="k">let</span> <span class="n">instructions</span> <span class="o">=</span>
+    <span class="o">[</span>
+        <span class="nc">Call</span> <span class="o">(</span><span class="n">writeLine</span><span class="o">,</span> <span class="s2">"hello"</span><span class="o">);</span>
+
+<pre><code>    &lt;span class="o"&gt;//&lt;/span&gt; &lt;span class="nc"&gt;How&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;branch&lt;/span&gt; &lt;span class="k"&gt;to&lt;/span&gt; &lt;span class="n"&gt;something&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;haven&amp;#39;t&lt;/span&gt; &lt;span class="n"&gt;constructed&lt;/span&gt; &lt;span class="n"&gt;yet&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt;
+    &lt;span class="nc"&gt;Branch&lt;/span&gt; &lt;span class="o"&gt;???&lt;/span&gt;
+&lt;span class="o"&gt;]&lt;/span&gt;
+</code></pre>
+<p id="p6"><span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="n">instructions</span>
+</p></pre></div>
+<p id="p7">The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">F</span><span class="o">#</span> <span class="n">abstract</span> <span class="n">syntax</span> <span class="n">tree</span> <span class="k">with</span> <span class="n">mutability</span> <span class="o">-</span> 
+<span class="o">//</span>  <span class="n">note</span> <span class="n">property</span> <span class="n">assignment</span> <span class="k">with</span> <span class="o">&lt;-</span>
+<span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">BasicBlock</span><span class="bp">()</span>
+<span class="k">let</span> <span class="n">instructions</span> <span class="o">=</span>
+    <span class="o">[</span>
+        <span class="nc">Call</span> <span class="o">(</span><span class="n">writeLine</span><span class="o">,</span> <span class="s2">"hello"</span><span class="o">);</span>
+        <span class="nc">Branch</span> <span class="n">program</span>
+    <span class="o">]</span>
+
+<p id="p8"><span class="n">program</span><span class="o">.</span><span class="nc">Instructions</span> <span class="o">&lt;-</span> <span class="n">instructions</span>
+</p></pre></div>
+<p id="p9">LLVM does something similar with its C++ API:</p>
+<div class="pygments_murphy"><pre><span class="c1">// LLVM equivalent in C++</span>
+
+<p id="p10"><span class="c1">// 'bb' is a basic block within func_main</span>
+<span class="n">BasicBlock</span><span class="o">*</span> <span class="n">label_bb</span> <span class="o">=</span> <span class="n">BasicBlock</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="s">"bb"</span><span class="p">,</span> <span class="n">func_main</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span></p>
+<p id="p11"><span class="c1">// First instruction in bb: call puts("hello")</span>
+<span class="n">CallInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">func_puts</span><span class="p">,</span> <span class="n">const_ptr_8</span><span class="p">,</span> <span class="s">""</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span></p>
+<p id="p12"><span class="c1">// Second instruction in bb: branch back to bb</span>
+<span class="n">BranchInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">label_bb</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span>
+</p></pre></div>
+<p id="p13">I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:</p>
+<ul><li>Structure the entire program as a graph of basic blocks linked by branch instructions</li>
+<li>Abstract syntax trees can't do everything; instead, they appear as instructions within basic blocks</li>
+<li>Construction of basic blocks must be separate from construction of the instructions within them, so that we can refer to a basic block from one of its own instructions</li>
+<li>As it progresses through compiler passes, the program graph starts looking less functional and more imperative, until it eventually represents actual machine instructions</li>
+<li>I should probably read <a href="http://dragonbook.stanford.edu/">a compiler textbook</a></li>
+</ul>
+
+  </span>
+</div>
+
+
+
+  <div class="after_post"><a href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html#disqus_thread">Read and Post Comments</a></div>
+  <hr class="interblog" />
+ <a href="../2">« Previous Page</a>
+  --  
+ <a href="../4">Next Page »</a>
+
+        </div><!-- End Prose Block -->
+        
+  <div class="right_sidebar">
+    <div id="right_sidebar">
+  <div id="links">
+  <h3>About Tim</h3>
+  <ul>
+      <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+  </ul>
+  </div>
+  <div id="blog_post_list">
+  <h3>Latest blog posts</h3>
+  <ul>
+    <li><a href="_posts/030.new_npackage_binaries.markdown">New NPackage binaries</a></li>
+    <li><a href="_posts/029.this_week_on_npackage.markdown">This week on NPackage</a></li>
+    <li><a href="_posts/028.first.markdown">First six NPackage packages</a></li>
+    <li><a href="_posts/027.npackage_news.markdown">NPackage news</a></li>
+    <li><a href="_posts/026.net_package_manager_feedback.markdown">.NET package manager feedback</a></li>
+  </ul>
+  </div>
+  <div id="categories">
+    <h3>Categories</h3>
+    <ul>
+     <li><a href="/blog/category/uncategorized">Uncategorized</a> (<a href="/blog/category/uncategorized/feed">rss</a>) (17)</li>
+     <li><a href="/blog/category/npackage">NPackage</a> (<a href="/blog/category/npackage/feed">rss</a>) (6)</li>
+     <li><a href="/blog/category/compiler">Compiler</a> (<a href="/blog/category/compiler/feed">rss</a>) (7)</li>
+    </ul>
+  </div> 
+  <div id="archives">			
+    <h3>Archives</h3>
+    <ul>
+      <li><a href="/blog/archive/2010/05/1" title="May 2010">May 2010</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2010/04/1" title="April 2010">April 2010</a>&nbsp;(5)</li>
+      <li><a href="/blog/archive/2010/03/1" title="March 2010">March 2010</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/11/1" title="November 2009">November 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/10/1" title="October 2009">October 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/08/1" title="August 2009">August 2009</a>&nbsp;(1)</li>
+      <li><a href="/blog/archive/2009/07/1" title="July 2009">July 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/06/1" title="June 2009">June 2009</a>&nbsp;(6)</li>
+      <li><a href="/blog/archive/2009/05/1" title="May 2009">May 2009</a>&nbsp;(3)</li>
+      <li><a href="/blog/archive/2009/04/1" title="April 2009">April 2009</a>&nbsp;(6)</li>
+    </ul>
+  </div>
+
+</div>
+
+  </div>
+
+      </div><!-- End Main Block -->
+      <div id="footer">
+        
+  <p id="credits">
+Powered by <a href="http://www.blogofile.com">Blogofile</a>.<br/>
+<br/>
+RSS feeds for <a href="http://feeds2.feedburner.com/TimRobinson">Entries</a>
+ and <a
+href="http://timrobinson.disqus.com/latest.rss">Comments</a>.
+<br>
+</p>
+<script type="text/javascript">
+//<![CDATA[
+(function() {
+		var links = document.getElementsByTagName('a');
+		var query = '?';
+		for(var i = 0; i < links.length; i++) {
+			if(links[i].href.indexOf('#disqus_thread') >= 0) {
+				query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+			}
+		}
+		document.write('<script charset="utf-8" type="text/javascript" src="http://disqus.com/forums/timrobinson/get_num_replies.js' + query + '"></' + 'script>');
+	})();
+//]]>
+</script>
+
+
+      </div> <!-- End Footer -->
+    </div> <!-- End Content -->
+  </body>
+</html>
+
+
+
+
+
