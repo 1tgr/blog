@@ -64,11 +64,18 @@ class PostParseException(Exception):
     def __str__(self):
         return repr(self.value)
         
+include_re = re.compile(
+    r"(?:^|\s)"                 # $$include Must start as a new word
+    r"\$\$include"              # $$include is the start of the block
+    r"\((?P<args>[^\r\n]*)\)"   # file name is passed in brackets
+    r"[^\r\n]*\r?\n"            # ignore everything else on the 1st line
+    , re.DOTALL)
+
 class Post:
     """
     Class to describe a blog post and associated metadata
     """
-    def __init__(self, source, filename="Untitled"):
+    def __init__(self, source, path="Untitled"):
         self.source     = source
         self.yaml       = None
         self.title      = None
@@ -80,7 +87,8 @@ class Post:
         self.permalink  = None
         self.content    = u""
         self.excerpt    = u""
-        self.filename   = filename
+        self.path       = path
+        self.filename   = os.path.split(path)[1]
         self.author     = ""
         self.guid       = None
         self.draft      = False
@@ -113,6 +121,17 @@ class Post:
         #Apply post level filters (filters on the entire post)
         #If filter is unspecified, use the default filter based on
         #the file extension:
+        
+        dir = os.path.dirname(self.path)
+        substitutions = {}
+        for m in include_re.finditer(post_src):
+            filename = m.group('args')
+            f = open(bf.util.path_join(dir, filename), 'rt')
+            substitutions[m.group()] = "\n" + f.read()
+        if len(substitutions) > 0:
+            p = re.compile('|'.join(map(re.escape, substitutions)))
+            post_src = p.sub(lambda x: substitutions[x.group(0)], post_src)
+
         if self.filters == None:
             try:
                 file_extension = os.path.splitext(self.filename)[-1][1:]
@@ -291,7 +310,6 @@ def parse_posts(directory):
             directory, post_filename_re) if post_filename_re.match(f)]
     
     for post_path in post_paths:
-        post_fn = os.path.split(post_path)[1]
         logger.debug("Parsing post: %s" % post_path)
         #IMO codecs.open is broken on Win32.
         #It refuses to open files without replacing newlines with CR+LF
@@ -302,7 +320,7 @@ def parse_posts(directory):
             logger.exception("Error reading post: %s" % post_path)
             raise
         try:
-            p = Post(src, filename=post_fn)
+            p = Post(src, path = post_path)
         except PostParseException as e:
             logger.warning(e.value+" : Skipping this post.")
             continue
