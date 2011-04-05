@@ -71,6 +71,20 @@ include_re = re.compile(
     r"[^\r\n]*\r?\n"            # ignore everything else on the 1st line
     , re.DOTALL)
 
+region_re = re.compile(
+    r"(?:^|\s)"                   # $$region Must start as a new word
+    r"\$\$region"                 # $$region is the start of the block
+    r"\((?P<name>[^\r\n]*)\)"     # region name is passed in brackets
+    r"[^\r\n]*\r?\n"              # ignore everything else on the 1st line
+    r"(?P<code>.*?)\s\$\$/region" # region block continues until $$/region
+    , re.DOTALL)
+
+def extract_code(code, name):
+    for m in region_re.finditer(code):
+        if m.group('name') == name:
+            return m.group('code')
+    return ""
+
 class Post:
     """
     Class to describe a blog post and associated metadata
@@ -114,6 +128,22 @@ class Post:
         #Do post excerpting
         self.__parse_post_excerpting()
 
+    def __replace_includes(self, post_src):
+        dir = os.path.dirname(self.path)
+        substitutions = {}
+        for m in include_re.finditer(post_src):
+            parts = m.group('args').split('#', 2)
+            f = open(bf.util.path_join(dir, parts[0]), 'rt')
+            include = "\n" + f.read()
+            if len(parts) > 1:
+                include = extract_code(include, parts[1])
+            substitutions[m.group()] = include
+        if len(substitutions) > 0:
+            p = re.compile('|'.join(map(re.escape, substitutions)))
+            return p.sub(lambda x: substitutions[x.group(0)], post_src)
+        else:
+            return post_src
+
     def __apply_filters(self, post_src):
         """Apply filters to the post"""
         #Apply block level filters (filters on only part of the post)
@@ -121,17 +151,7 @@ class Post:
         #Apply post level filters (filters on the entire post)
         #If filter is unspecified, use the default filter based on
         #the file extension:
-        
-        dir = os.path.dirname(self.path)
-        substitutions = {}
-        for m in include_re.finditer(post_src):
-            filename = m.group('args')
-            f = open(bf.util.path_join(dir, filename), 'rt')
-            substitutions[m.group()] = "\n" + f.read()
-        if len(substitutions) > 0:
-            p = re.compile('|'.join(map(re.escape, substitutions)))
-            post_src = p.sub(lambda x: substitutions[x.group(0)], post_src)
-
+        post_src = self.__replace_includes(post_src)
         if self.filters == None:
             try:
                 file_extension = os.path.splitext(self.filename)[-1][1:]
