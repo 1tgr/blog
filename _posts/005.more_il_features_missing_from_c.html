@@ -11,9 +11,9 @@ permalink: /blog/2009/04/more-il-features-missing-from-c.html
 
 <p>There is in fact a trick you can use to get hold of a <code>MethodInfo</code> object without having to call <code>Type.GetMethod</code> or the like:</p>
 
-<p>[code:csharp]
+$$code(lang=csharp)
 MethodInfo methodInfo = new Action<string>(Console.WriteLine).Method;
-[/code]</p>
+$$/code
 
 <p>However, because this trick instantiates a new delegate to use its <code>Method</code> property, it's only useful when:</p>
 
@@ -26,11 +26,11 @@ MethodInfo methodInfo = new Action<string>(Console.WriteLine).Method;
 
 <p><strong>Typed references:</strong> You may have noticed the <code>System.TypedReference</code> class documented in MSDN, and wondered what it was useful for. C# supports typed references -- effectively safe, verifiable pointers -- via three undocumented keywords.</p>
 
-<p>[code:csharp]
+$$code(lang=csharp)
 int i = 42;
 TypedReference reference = __makeref(i);
 Debug.Assert(__reftype(reference) == typeof(int));
 Debug.Assert(__refvalue(reference, int) == 42);
-[/code]</p>
+$$/code
 
 <p>I haven't seen any official statement from Microsoft saying that this technique is going to stop working any time soon, but they don't seem to be in a hurry to fix <a href="http://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=347243">bugs relating to</a> <a href="http://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=339510">these keywords</a>.</p>

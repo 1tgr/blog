@@ -22,7 +22,7 @@ permalink: /blog/2009/04/making-sense-of-xsd-type-names-in-c.html
 
 <p>In summary, I went with option 3: construct an XML document in memory, containing the string I originally wanted converted, and the XSD type name supplied to me. Running that through the XmlSerializer causes ReadTypedPrimitive -- with its large switch statement -- to get called, and I end up with a .NET object whose type corresponds to the XSD type of my choice.</p>
 
-[code:csharp]
+$$code(lang=csharp)
 using System;
 using System.Diagnostics;
 using System.Xml;
@@ -73,4 +73,4 @@ public static class Program
         Debug.Assert(Equals(new DateTime(2009, 4, 17), XsdConvert.ConvertFrom("2009-04-17", "xs:date")));
     }
 }
-[/code]
+$$/code

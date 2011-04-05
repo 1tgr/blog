@@ -11,7 +11,7 @@ permalink: /blog/2009/04/inline-il-assembly.html
 
 <p>I put together a proof of concept that lets you write code like this:</p>
 
-[code:csharp]
+$$code(lang=csharp)
 public static class Program
 {
     private static int Calculate()
@@ -28,7 +28,7 @@ public static class Program
         Console.WriteLine("(1 + 1) * 10 = {0}", Calculate());
     }
 }
-[/code]
+$$/code
 
 <p>The methods on the <code>IL</code> class are placeholders that get replaced by a separate post-processor:</p>
 <ul>
@@ -49,7 +49,7 @@ public static class Program
 
 <p>Here's the code for the post processor, conveniently provided as an NUnit test fixture. Its purpose is to load an assembly using Mono Cecil, loop through each method, recognise the IL emitted by the C# compiler for each of the three <code>IL</code> methods, replace those calls with chunks of real IL, and save a new assembly. A word of advice: <code>peverify</code> is essential for testing: it's easy to generate unverifiable IL this way.</p>
 
-[code:csharp]
+$$code(lang=csharp)
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -136,4 +136,4 @@ public class InlineIL
         AssemblyFactory.SaveAssembly(assembly, "Temp.new.exe");
     }
 }
-[/code]
+$$/code
