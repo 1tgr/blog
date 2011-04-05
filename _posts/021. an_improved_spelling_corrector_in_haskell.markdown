@@ -15,24 +15,24 @@ permalink: /blog/2009/11/an-improved-spelling-corrector-in-haskell.html
 
 I should have realised this at the time, but it didn't occur to me that [you can use full pattern-matching syntax in the right-hand side of a Haskell list comprehension](http://www.haskell.org/onlinereport/exps.html#list-comprehensions). If the match fails on some element then that element is filtered out. We can use this to improve on the Python version of the `edits1` function: whereas the Python version combines its `b[0]` subscripts with an `if b` check, the Haskell version can use pattern matching to do both. We can also use the `inits` and `tails` functions to build substrings instead of brute-force applications of `take` and `drop`.
 
-<pre>
+$$code(lang=text)
 # Python
 def edits1(word):
    s = [(word[:i], word[i:]) for i in range(len(word) + 1)]
    deletes    = [a + b[1:] for a, b in s if b]
-   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)&gt;1]
+   transposes = [a + b[1] + b[0] + b[2:] for a, b in s if len(b)>1]
    replaces   = [a + c + b[1:] for a, b in s for c in alphabet if b]
    inserts    = [a + c + b     for a, b in s for c in alphabet]
    return set(deletes + transposes + replaces + inserts)
 
-&gt; -- Haskell
-&gt; edits1 word = let s = zip (inits word) (tails word)
-&gt;                   deletes    = [ a ++ y     | (a, _:y  ) &lt;- s ]
-&gt;                   transposes = [ a ++ y:x:z | (a, x:y:z) &lt;- s ]
-&gt;                   replaces   = [ a ++ c:y   | (a, _:y  ) &lt;- s, c &lt;- alphabet ]
-&gt;                   inserts    = [ a ++ c:x   | (a, x    ) &lt;- s, c &lt;- alphabet ]
-&gt;                in Set.fromList $ concat [ deletes, transposes, replaces, inserts ]
-</pre>
+> -- Haskell
+> edits1 word = let s = zip (inits word) (tails word)
+>                   deletes    = [ a ++ y     | (a, _:y  ) <- s ]
+>                   transposes = [ a ++ y:x:z | (a, x:y:z) <- s ]
+>                   replaces   = [ a ++ c:y   | (a, _:y  ) <- s, c <- alphabet ]
+>                   inserts    = [ a ++ c:x   | (a, x    ) <- s, c <- alphabet ]
+>                in Set.fromList $ concat [ deletes, transposes, replaces, inserts ]
+$$/code
 
 The `edits1` function is the densest one in both the Python and Haskell versions. It's the one where the intent of the code was least clear to me when I originally saw it, probably because of the extra clutter in the list comprehensions. In the latest Haskell revision it's more obvious what's going on.
 

@@ -76,7 +76,7 @@ blog.auto_permalink.enabled = False
 ######################################################################
 #### Disqus.com comment integration ####
 blog.disqus.enabled = True
-blog.disqus.name    = "tim_g_robinson"
+blog.disqus.name    = "timrobinson"
 
 ### Syntax highlighter ###
 # You can change the style to any builtin Pygments style

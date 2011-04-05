@@ -27,12 +27,16 @@ These six packages test a few different scenarios:
 
 Although NPackage is working nicely for its own development, I need to put in more work before the installation process is simple enough. Right now the [command to install NPackage's own dependencies](http://github.com/timrobinson/NPackage/blob/master/scripts/install) looks like this:
 
-<pre class="brush: plain">NPackage http://np.partario.com/nunit-2.5.5.10112/nunit.np \
-         http://np.partario.com/sharpziplib-0.85.5/sharpziplib.np</pre>
+$$code(lang=text)
+NPackage http://np.partario.com/nunit-2.5.5.10112/nunit.np \
+         http://np.partario.com/sharpziplib-0.85.5/sharpziplib.np
+$$/code
 
 I'd like to simplify it to this:
 
-<pre class="brush: plain">np install nunit sharpziplib</pre>
+$$code(lang=text)
+np install nunit sharpziplib
+$$/code
 
 To do this I'll need to handle dependencies properly. I expect I'll need to drop the approach of putting package descriptions in their own files: the client will need to contain enough intelligence to put together a dependency graph and install the right versions of the right packages. It will be easier to do this if the client can download a central package database list and make its decisions based on the descriptions within there.
 

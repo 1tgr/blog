@@ -15,13 +15,13 @@ To summarise, a basic block obeys two rules:
 
 For instance, here's a graph of a program that uses a recursive `factorial` function:
 
-<pre class="brush: plain">
+$$code(lang=text)
 (define (factorial n)
   (if (= n 0) 
     1 
     (* n (factorial (- n 1)))))
 (Console.WriteLine (factorial 6))
-</pre>
+$$/code
 <span class="mt-enclosure mt-enclosure-image" style="display: inline;"><img alt="Factorial.png" src="http://www.partario.com/blog/2009/08/02/Factorial.png" width="543" height="643" class="mt-image-none" style="" /></span>
 
 Here I've marked graph edges with a .NET branch instruction (in this case, `br`, `beq` or `ret`). These edges link the graph's nodes -- the basic blocks -- which is where the other instructions in the program appear. A block doesn't need to contain any instructions; for instance, the _then_ and _else_ branches of the `if` block both lead unconditionally to a single empty block, which in turn exits the function.
@@ -36,9 +36,9 @@ These new data structures now allow me to split the code concerned with IL gener
 
 I won't list out the code in full, since I've submitted it to GitHub ([CodeGeneration.fs](http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core/CodeGenerator.fs)) and because it's got broadly the same structure as [the last time I posted it](http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html). The difference is that most of the work is performed by a `makeBlock` function:
 
-<pre class="brush: fsharp">
-val makeBlock : IILTarget -> Map&lt;string, LispVal&gt; -> LispVal -> Map&lt;string, LispVal&gt; * ILBlock * ILBlock
-</pre>
+$$code(lang=ocaml)
+val makeBlock : IILTarget -> Map<string, LispVal> -> LispVal -> Map<string, LispVal> * ILBlock * ILBlock
+$$/code
 
 The purpose of this function is to:
 
@@ -60,49 +60,49 @@ Take a look at the diagram at the top of this post. Because the diagram doesn't 
 
 These rules give us a nice opportunity to use pattern matching -- note how the structure of the code is similar to my explanation above:
 
-<pre class="brush: fsharp">
+$$code(lang=ocaml)
 // Given a list of blocks:
 // - branch is the ILBranchOpCode of the first block
 // - otherBlocks is a list containing the rest of the blocks
 match branch, otherBlocks with
 | Br target, next :: _ 
-    when target = next -&gt; // Case A
+    when target = next -> // Case A
     ()
 | Beq (equalTarget, notEqualTarget), next :: _ 
-    when equalTarget = next -&gt; // Case B
+    when equalTarget = next -> // Case B
     generator.Emit(OpCodes.Bne_Un, labels.[notEqualTarget])
 | Beq (equalTarget, notEqualTarget), next :: _ 
-    when notEqualTarget = next -&gt; // Case C
+    when notEqualTarget = next -> // Case C
     generator.Emit(OpCodes.Beq, labels.[equalTarget])
-| Br { Instructions = [ ]; Branch = Ret }, _-&gt; // Case D
+| Br { Instructions = [ ]; Branch = Ret }, _-> // Case D
     generator.Emit(OpCodes.Ret)
-| branchOpCode, _ -&gt;    // None of the above apply
+| branchOpCode, _ ->    // None of the above apply
     emitBranch labels branchOpCode
-</pre>
+$$/code
 
 Finally -- and here's what I've been building up to with these last couple of posts -- we can implement tail call recursion, using the `tail.call` prefix. Our graph data structures allow us to literally look for the situation that the IL spec requires: a `call` instruction immediately followed by `ret`. In our case, this happens when a block's branch is `Ret`, and the last instruction of that block is `Call`:
 
-<pre class="brush: fsharp">
+$$code(lang=ocaml)
 let rec emitInstructions block = 
     let isRetBlock =
         // A slight hack: due to the above optimisations,
         //  there's a couple of ways of emitting a Ret
         match block with
-        | { Branch = Ret } -&gt; true
+        | { Branch = Ret } -> true
         | { Branch = Br {
             Instructions = [ ]; 
-            Branch = Ret } } -&gt; true
-        | _ -&gt; false
+            Branch = Ret } } -> true
+        | _ -> false
     function
-    | [ Call _ as instruction ] when isRetBlock -&gt;
+    | [ Call _ as instruction ] when isRetBlock ->
         generator.Emit(OpCodes.Tailcall)
         emitInstruction instruction
-    | instruction :: otherInstructions -&gt;
+    | instruction :: otherInstructions ->
         emitInstruction instruction
         emitInstructions block otherInstructions
-    | [ ] -&gt;
+    | [ ] ->
         ()
-</pre>
+$$/code
 
 By reorganising my compiler to support tail recursion I've learned that:
 

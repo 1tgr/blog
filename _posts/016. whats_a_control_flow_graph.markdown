@@ -29,7 +29,7 @@ The ability to represent loops, and control flow in general, seems to be importa
 
 How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:
 
-<pre class="brush: fsharp">
+$$code(lang=ocaml)
 // An instruction can be a regular opcode, 
 //  or a branch to another basic block
 type Instruction = CallInstruction of MethodInfo * obj
@@ -37,17 +37,17 @@ type Instruction = CallInstruction of MethodInfo * obj
                  
 // A basic block is a list of instructions
 and BasicBlock = BasicBlock of Instruction list
-</pre>
+$$/code
 
 We have to construct a list of instructions before constructing a basic block. But how do we represent the following?
 
-<pre class="brush: csharp">
+$$code(lang=csharp)
 // C# pseudocode
 while (true)
     Console.WriteLine("hello");
-</pre>
+$$/code
 
-<pre class="brush: fsharp">
+$$code(lang=ocaml)
 // F# abstract syntax tree for the above C#
 let instructions =
     [
@@ -57,13 +57,13 @@ let instructions =
         Branch ???
     ]
 let program = BasicBlock instructions
-</pre>
+$$/code
 
 The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:
 
-<pre class="brush: fsharp">
+$$code(lang=ocaml)
 // F# abstract syntax tree with mutability - 
-//  note property assignment with &lt;-
+//  note property assignment with <-
 let program = new BasicBlock()
 let instructions =
     [
@@ -71,12 +71,12 @@ let instructions =
         Branch program
     ]
 
-program.Instructions &lt;- instructions
-</pre>
+program.Instructions <- instructions
+$$/code
 
 LLVM does something similar with its C++ API:
 
-<pre class="brush: cpp">
+$$code(lang=cpp)
 // LLVM equivalent in C++
 
 // 'bb' is a basic block within func_main
@@ -87,7 +87,7 @@ CallInst::Create(func_puts, const_ptr_8, "", label_bb);
 
 // Second instruction in bb: branch back to bb
 BranchInst::Create(label_bb, label_bb);
-</pre>
+$$/code
 
 I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:
 
