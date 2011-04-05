@@ -1,0 +1,1347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed
+  xmlns="http://www.w3.org/2005/Atom"
+  xmlns:thr="http://purl.org/syndication/thread/1.0"
+  xml:lang="en"
+   >
+  <title type="text">Tim Robinson</title>
+  <subtitle type="text"></subtitle>
+
+  <updated>2011-04-05T18:16:55Z</updated>
+  <generator uri="http://blogofile.com/">Blogofile</generator>
+
+  <link rel="alternate" type="text/html" href="http://www.partario.com/blog/" />
+  <id>http://www.partario.com/blog//feed/atom/</id>
+  <link rel="self" type="application/atom+xml" href="http://www.partario.com/blog//feed/atom/" />
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Control flow graph v0.1: Tail recursion]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html" />
+    <id>http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html</id>
+    <updated>2009-08-02T11:34:44Z</updated>
+    <published>2009-08-02T11:34:44Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Control flow graph v0.1: Tail recursion]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/08/control-flow-graph-v01-tail-recursion.html"><![CDATA[<p id="p1">In <a href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html">my last Lisp compiler post</a>, I talked about what I might need to do in order to support tail-recursive calls. I came to the conclusion that my compiler need to start describing the program as a graph of linked basic blocks.</p>
+<p id="p2">To summarise, a basic block obeys two rules:</p>
+<ul>
+<li>It has a single entry point: the program isn't allowed to branch into the middle of the block</li>
+<li>It has a single exit point: the block always contains a single branch instruction, which appears at the end</li>
+</ul>
+<p id="p3">For instance, here's a graph of a program that uses a recursive <code>factorial</code> function:</p>
+<div class="pygments_murphy"><pre>(define (factorial n)
+  (if (= n 0) 
+    1 
+    (* n (factorial (- n 1)))))
+(Console.WriteLine (factorial 6))
+</pre></div>
+
+<p id="p4"><span class="mt-enclosure mt-enclosure-image" style="display: inline;"><img alt="Factorial.png" src="http://www.partario.com/blog/2009/08/02/Factorial.png" width="543" height="643" class="mt-image-none" style=""/></span></p>
+<p id="p5">Here I've marked graph edges with a .NET branch instruction (in this case, <code>br</code>, <code>beq</code> or <code>ret</code>). These edges link the graph's nodes -- the basic blocks -- which is where the other instructions in the program appear. A block doesn't need to contain any instructions; for instance, the <em>then</em> and <em>else</em> branches of the <code>if</code> block both lead unconditionally to a single empty block, which in turn exits the function.</p>
+<p id="p6">To represent the data structures in the graph I added three F# types to the compiler. All of them are immutable apart from <code>ILBlock</code>'s <code>Branch</code> field, which I made mutable in order to allow circular references between blocks:</p>
+<ul>
+<li><code>ILOpCode</code>: a discriminated union with one case for each IL opcode that can appear inside a block -- <code>Add</code>, <code>Box of Type</code>, <code>Call of MethodInfo</code>, etc. Note that <code>call</code> is not considered a branching opcode for these purposes, since it doesn't interrupt the control flow.</li>
+<li><code>ILBranchOpCode</code>: a discriminated union with one case for each IL opcode that can appear at the end of a block - <code>Beq of ILBlock * ILBlock</code>, <code>Br of ILBlock</code>, <code>Brtrue of ILBlock * ILBlock</code>, <code>NoBranch</code> and <code>Ret</code>. The values for <code>Beq</code> and <code>Brtrue</code> specify both branch possibilities. Each <code>ILBranchOpCode</code> represents an edge in the graph.</li>
+<li><code>ILBlock</code>: a record containing a list of <code>IlOpCode</code> and a mutable <code>ILBranchOpCode</code> field. Each <code>ILBlock</code> represents a basic block; that is, a node in the graph that can be linked by two or more <code>ILBranchOpCode</code>s.</li>
+</ul>
+<p id="p7">These new data structures now allow me to split the code concerned with IL generation into two parts: a large function that turns the abstract syntax tree into a graph of basic blocks, and a class that takes this graph and uses it to emit IL code through an <code>ILGenerator</code>. (Actually there are two of these classes -- <code>DynamicMethodTarget</code> and <code>MethodBuilderTarget</code> -- because there is no common base between the two classes .NET provides to instantiate an <code>ILGenerator</code>.)</p>
+<p id="p8">I won't list out the code in full, since I've submitted it to GitHub (<a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core/CodeGenerator.fs">CodeGeneration.fs</a>) and because it's got broadly the same structure as <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html">the last time I posted it</a>. The difference is that most of the work is performed by a <code>makeBlock</code> function:</p>
+<div class="pygments_murphy"><pre><span class="k">val</span> <span class="n">makeBlock</span> <span class="o">:</span> <span class="nc">IILTarget</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">-&gt;</span> <span class="nc">LispVal</span> <span class="o">-&gt;</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;</span> <span class="o">*</span> <span class="nc">ILBlock</span> <span class="o">*</span> <span class="nc">ILBlock</span>
+</pre></div>
+
+<p id="p9">The purpose of this function is to:</p>
+<ul>
+<li>Accept an <code>IILTarget</code>, an interface capable of defining new methods and local variables; a map, which contains the environment at this point in the program; and a <code>LispVal</code>, which represents one line of code</li>
+<li>Return a new environment, which could be modified version of the one passed in; and two <code>ILBlock</code> instances, which represent the head and tail of a new subgraph</li>
+</ul>
+<p id="p10">Normally <code>makeBlock</code> will construct only a single block, in which case both the same block object will be returned twice. An <code>if</code> form is more complicated, in that it consists of a diamond shape: the block that contains the code for the test can branch to either the <em>then</em> or the <em>else</em> block, both of which eventually branch back to the same location so that the program can continue. When generating code for an <code>if</code>, <code>makeBlock</code> will return the blocks at the top and bottom of the diamond, ready to be linked together with the rest of the program. (The edges between the <em>then</em> and <em>else</em> blocks are already added.)</p>
+<p id="p11">Now the the clever part: because we've got the program's structure and code as a graph in memory, we can do some more interesting optimisations. The process of turning this graph into IL goes as follows:</p>
+<ol>
+<li>Iterate through the graph and assign a IL label to each block. With a depth-first recursive search we have to be careful not to get stuck in a circular reference: to avoid this we keep track of blocks we've already encountered.</li>
+<li>Iterate through the graph again: generate instructions for each block, followed by an instruction for the block's branch</li>
+</ol>
+<p id="p12">Take a look at the diagram at the top of this post. Because the diagram doesn't assume a particular ordering of the instructions in memory -- for instance, it doesn't specify whether <em>then</em> or <em>else</em> comes first -- some of its branch instructions are redundant. To generate somewhat sensible IL we have to do some basic optimisations in step (2):</p>
+<ul>
+<li><span class="alt">Case A:</span> If step (1) put two blocks next to each other in memory, we don't need to insert a <code>br</code> instruction between them. Recall that <code>br</code> is an unconditional jump instruction; by leaving it out, we cause the program to fall through from one block to the next.</li>
+<li><span class="alt">Cases B and C:</span> Likewise, use the ordering of the blocks to drop one of the targets of <code>beq</code> and replace it with a fall through</li>
+<li><span class="alt">Case D:</span> If block branches to its target using <code>br</code>, and its target contains no instructions and ends in <code>ret</code>, insert a <code>ret</code> instruction directly</li>
+</ul>
+<p id="p13">These rules give us a nice opportunity to use pattern matching -- note how the structure of the code is similar to my explanation above:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Given</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">blocks</span><span class="o">:</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">branch</span> <span class="n">is</span> <span class="n">the</span> <span class="nc">ILBranchOpCode</span> <span class="k">of</span> <span class="n">the</span> <span class="n">first</span> <span class="n">block</span>
+<span class="o">//</span> <span class="o">-</span> <span class="n">otherBlocks</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="n">containing</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">blocks</span>
+<span class="k">match</span> <span class="n">branch</span><span class="o">,</span> <span class="n">otherBlocks</span> <span class="k">with</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="n">target</span><span class="o">,</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">target</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">A</span>
+    <span class="bp">()</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">equalTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">B</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Bne_Un</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">notEqualTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Beq</span> <span class="o">(</span><span class="n">equalTarget</span><span class="o">,</span> <span class="n">notEqualTarget</span><span class="o">),</span> <span class="n">next</span> <span class="o">::</span> <span class="o">_</span> 
+    <span class="k">when</span> <span class="n">notEqualTarget</span> <span class="o">=</span> <span class="n">next</span> <span class="o">-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">C</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Beq</span><span class="o">,</span> <span class="n">labels</span><span class="o">.[</span><span class="n">equalTarget</span><span class="o">])</span>
+<span class="o">|</span> <span class="nc">Br</span> <span class="o">{</span> <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">},</span> <span class="o">_-&gt;</span> <span class="o">//</span> <span class="nc">Case</span> <span class="nc">D</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ret</span><span class="o">)</span>
+<span class="o">|</span> <span class="n">branchOpCode</span><span class="o">,</span> <span class="o">_</span> <span class="o">-&gt;</span>    <span class="o">//</span> <span class="nc">None</span> <span class="k">of</span> <span class="n">the</span> <span class="n">above</span> <span class="n">apply</span>
+    <span class="n">emitBranch</span> <span class="n">labels</span> <span class="n">branchOpCode</span>
+</pre></div>
+
+<p id="p14">Finally -- and here's what I've been building up to with these last couple of posts -- we can implement tail call recursion, using the <code>tail.call</code> prefix. Our graph data structures allow us to literally look for the situation that the IL spec requires: a <code>call</code> instruction immediately followed by <code>ret</code>. In our case, this happens when a block's branch is <code>Ret</code>, and the last instruction of that block is <code>Call</code>:</p>
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">emitInstructions</span> <span class="n">block</span> <span class="o">=</span> 
+    <span class="k">let</span> <span class="n">isRetBlock</span> <span class="o">=</span>
+        <span class="o">//</span> <span class="nc">A</span> <span class="n">slight</span> <span class="n">hack</span><span class="o">:</span> <span class="n">due</span> <span class="k">to</span> <span class="n">the</span> <span class="n">above</span> <span class="n">optimisations</span><span class="o">,</span>
+        <span class="o">//</span>  <span class="n">there's</span> <span class="n">a</span> <span class="n">couple</span> <span class="k">of</span> <span class="n">ways</span> <span class="k">of</span> <span class="n">emitting</span> <span class="n">a</span> <span class="nc">Ret</span>
+        <span class="k">match</span> <span class="n">block</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">{</span> <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Br</span> <span class="o">{</span>
+            <span class="nc">Instructions</span> <span class="o">=</span> <span class="o">[</span> <span class="o">];</span> 
+            <span class="nc">Branch</span> <span class="o">=</span> <span class="nc">Ret</span> <span class="o">}</span> <span class="o">}</span> <span class="o">-&gt;</span> <span class="bp">true</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">false</span>
+    <span class="k">function</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="nc">Call</span> <span class="o">_</span> <span class="k">as</span> <span class="n">instruction</span> <span class="o">]</span> <span class="k">when</span> <span class="n">isRetBlock</span> <span class="o">-&gt;</span>
+        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Tailcall</span><span class="o">)</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+    <span class="o">|</span> <span class="n">instruction</span> <span class="o">::</span> <span class="n">otherInstructions</span> <span class="o">-&gt;</span>
+        <span class="n">emitInstruction</span> <span class="n">instruction</span>
+        <span class="n">emitInstructions</span> <span class="n">block</span> <span class="n">otherInstructions</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span>
+        <span class="bp">()</span>
+</pre></div>
+
+<p id="p15">By reorganising my compiler to support tail recursion I've learned that:</p>
+<ul>
+<li>Changing your data structures (in this case, implementing a control flow graph) can often make a previously difficult algorithm (tail call detection) straightforward</li>
+<li>If you haven't got any unit tests, you're not refactoring, you're just changing stuff. I've now written <a href="http://github.com/timrobinson/fsharp-lisp/blob/cbabb14119c6438126bb563f4e737d5847d0827f/Core.UnitTests/CompilerTests.fs">unit tests for the main features supported by the compiler</a>. As an aside, I think NUnit tests written in F# look nicer than their C# equivalents, although I was slightly disappointed that NUnit made me write a class with instance methods, whereas it would have been neater to have some functions for test cases defined directly inside an F# module.</li>
+<li>Writing a blog post on a topic before attempting it is a great way to get your thoughts clear in your head before starting</li>
+</ul>
+<p id="p16">What I might look at next is some more sophisticated algorithms over the control flow graph. Once you have a graph you make available a whole field of algorithms to use on your data. I haven't looked at it yet in detail, but I like Steve Horsfield's <a href="http://stevehorsfield.wordpress.com/2009/07/27/f-a-data-structure-for-modelling-directional-graphs/">data structure for modelling directional graphs</a>.</p>]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[What's a control flow graph?]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html" />
+    <id>http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html</id>
+    <updated>2009-07-26T12:49:27Z</updated>
+    <published>2009-07-26T12:49:27Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[What's a control flow graph?]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/07/whats-a-control-flow-graph.html"><![CDATA[<p id="p1">I'd like to add tail call support to my <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html">Lisp compiler</a>. I can think of two approaches to tail recursion:</p>
+<ul><li>Use the .NET <code>tail.call</code> prefix<ul><li>Translate <code>call</code> followed by <code>ret</code> into <code>tail.call</code> followed by <code>ret</code></li>
+<li>It's easier to spot this pattern if we put IL in our own data structure before emitting it</li>
+<li>Our own data structure needs to represent all the IL we use, including labels (for branching) and local variables</li>
+<li>The label data structure needs a way to represent the target of a branch</li>
+<li><span class="alt">Note:</span> The <code>tail</code> prefix is a hint that the JIT compiler doesn't have to obey - <a href="http://blogs.msdn.com/clrcodegeneration/archive/2009/05/11/tail-call-improvements-in-net-framework-4.aspx">here's a good explanation of the limitations</a></li>
+</ul></li>
+<li>Translate functions that call themselves into loops<ul><li>Our abstract syntax tree doesn't have a way to represent a loop</li>
+<li>As above, it needs an AST capable of representing branches</li>
+<li>The F# compiler does this; it's not able to rely on the <code>tail</code> prefix either</li>
+<li>Can we apply this to functions that call each other recursively? At compile time we might not spot co-recursive functions: F# only allows co-recursive functions if they use the <code>let ... and</code> syntax to define both functions in the same source file.</li>
+</ul></li>
+</ul><p id="p2">The ability to represent loops, and control flow in general, seems to be important in your syntax tree. The <a href="http://llvm.org/">LLVM</a> approach to this is the <a href="http://en.wikipedia.org/wiki/Basic_block">basic block</a>:</p>
+<ul><li>One entry point: no branching into the middle of the block</li>
+<li>One exit point: always contains one branch instruction, at the end</li>
+<li>Basic blocks can be connected to form a control flow graph: blocks are vertices, branch instructions are edges</li>
+<li>Control flow graph is: directed (A branches to B); cyclic (A is allowed to branch to A - this is a loop)</li>
+</ul><p id="p3">How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">An</span> <span class="n">instruction</span> <span class="n">can</span> <span class="n">be</span> <span class="n">a</span> <span class="n">regular</span> <span class="n">opcode</span><span class="o">,</span> 
+<span class="o">//</span>  <span class="ow">or</span> <span class="n">a</span> <span class="n">branch</span> <span class="k">to</span> <span class="n">another</span> <span class="n">basic</span> <span class="n">block</span>
+<span class="k">type</span> <span class="nc">Instruction</span> <span class="o">=</span> <span class="nc">CallInstruction</span> <span class="k">of</span> <span class="nc">MethodInfo</span> <span class="o">*</span> <span class="n">obj</span>
+                 <span class="o">|</span> <span class="nc">Branch</span> <span class="k">of</span> <span class="nc">BasicBlock</span>
+
+<p id="p4"><span class="o">//</span> <span class="nc">A</span> <span class="n">basic</span> <span class="n">block</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">instructions</span>
+<span class="ow">and</span> <span class="nc">BasicBlock</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="k">of</span> <span class="nc">Instruction</span> <span class="kt">list</span>
+</p></pre></div>
+<p id="p5">We have to construct a list of instructions before constructing a basic block. But how do we represent the following?</p>
+<div class="pygments_murphy"><pre><span class="c1">// C# pseudocode</span>
+<span class="k">while</span> <span class="p">(</span><span class="k">true</span><span class="p">)</span>
+    <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"hello"</span><span class="p">);</span>
+</pre></div>
+
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">F</span><span class="o">#</span> <span class="n">abstract</span> <span class="n">syntax</span> <span class="n">tree</span> <span class="k">for</span> <span class="n">the</span> <span class="n">above</span> <span class="nc">C</span><span class="o">#</span>
+<span class="k">let</span> <span class="n">instructions</span> <span class="o">=</span>
+    <span class="o">[</span>
+        <span class="nc">Call</span> <span class="o">(</span><span class="n">writeLine</span><span class="o">,</span> <span class="s2">"hello"</span><span class="o">);</span>
+
+<pre><code>    &lt;span class="o"&gt;//&lt;/span&gt; &lt;span class="nc"&gt;How&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;branch&lt;/span&gt; &lt;span class="k"&gt;to&lt;/span&gt; &lt;span class="n"&gt;something&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;haven&amp;#39;t&lt;/span&gt; &lt;span class="n"&gt;constructed&lt;/span&gt; &lt;span class="n"&gt;yet&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt;
+    &lt;span class="nc"&gt;Branch&lt;/span&gt; &lt;span class="o"&gt;???&lt;/span&gt;
+&lt;span class="o"&gt;]&lt;/span&gt;
+</code></pre>
+<p id="p6"><span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="n">instructions</span>
+</p></pre></div>
+<p id="p7">The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:</p>
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">F</span><span class="o">#</span> <span class="n">abstract</span> <span class="n">syntax</span> <span class="n">tree</span> <span class="k">with</span> <span class="n">mutability</span> <span class="o">-</span> 
+<span class="o">//</span>  <span class="n">note</span> <span class="n">property</span> <span class="n">assignment</span> <span class="k">with</span> <span class="o">&lt;-</span>
+<span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">BasicBlock</span><span class="bp">()</span>
+<span class="k">let</span> <span class="n">instructions</span> <span class="o">=</span>
+    <span class="o">[</span>
+        <span class="nc">Call</span> <span class="o">(</span><span class="n">writeLine</span><span class="o">,</span> <span class="s2">"hello"</span><span class="o">);</span>
+        <span class="nc">Branch</span> <span class="n">program</span>
+    <span class="o">]</span>
+
+<p id="p8"><span class="n">program</span><span class="o">.</span><span class="nc">Instructions</span> <span class="o">&lt;-</span> <span class="n">instructions</span>
+</p></pre></div>
+<p id="p9">LLVM does something similar with its C++ API:</p>
+<div class="pygments_murphy"><pre><span class="c1">// LLVM equivalent in C++</span>
+
+<p id="p10"><span class="c1">// 'bb' is a basic block within func_main</span>
+<span class="n">BasicBlock</span><span class="o">*</span> <span class="n">label_bb</span> <span class="o">=</span> <span class="n">BasicBlock</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="s">"bb"</span><span class="p">,</span> <span class="n">func_main</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span></p>
+<p id="p11"><span class="c1">// First instruction in bb: call puts("hello")</span>
+<span class="n">CallInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">func_puts</span><span class="p">,</span> <span class="n">const_ptr_8</span><span class="p">,</span> <span class="s">""</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span></p>
+<p id="p12"><span class="c1">// Second instruction in bb: branch back to bb</span>
+<span class="n">BranchInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">label_bb</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span>
+</p></pre></div>
+<p id="p13">I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:</p>
+<ul><li>Structure the entire program as a graph of basic blocks linked by branch instructions</li>
+<li>Abstract syntax trees can't do everything; instead, they appear as instructions within basic blocks</li>
+<li>Construction of basic blocks must be separate from construction of the instructions within them, so that we can refer to a basic block from one of its own instructions</li>
+<li>As it progresses through compiler passes, the program graph starts looking less functional and more imperative, until it eventually represents actual machine instructions</li>
+<li>I should probably read <a href="http://dragonbook.stanford.edu/">a compiler textbook</a></li>
+</ul>]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Lisp compiler in F#: What's next?]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html" />
+    <id>http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html</id>
+    <updated>2009-06-09T23:12:28Z</updated>
+    <published>2009-06-09T23:12:28Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Lisp compiler in F#: What's next?]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html"><![CDATA[
+<p id="p1">This is part 5 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a>, <a href="/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html">Expression trees and .NET methods</a>, <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html">IL generation</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">This post marks the end of the first series of Lisp compiler posts, since we're at the point where the code does something useful while still being compact enough to explain in a few blog posts. In the future it should make an interesting test bed for learning about compiler techniques, which I hope to cover here.</p>
+<p id="p3">Here's some of the ideas I'd like to try out:</p>
+<ul>
+  <li>Implement all the Lisp functionality from Jonathan Tang's <a href="http://halogen.note.amherst.edu/~jdtang/scheme_in_48/tutorial/overview.html">Write Yourself a Scheme in 48 Hours</a> tutorial. Jonathan explains how to implement a Scheme interpreter in Haskell, which is a similar goal to my Scheme-like compiler in F#. (It was actually his tutorial that first gave me the idea of doing it in F#.)</li>
+
+  <li>.NET integration:
+
+    <ul>
+      <li>Ability to create new .NET objects, call instance methods, and access properties and events. Currently we're restricted to static methods.</li>
+
+      <li>Ability to define your own .NET classes. One thing I'd like to be able to do is implement the NUnit tests for this project directly in Lisp, which means the compiler needs to be able to generate instance methods with custom attributes applied.</li>
+
+      <li>A full System.CodeDom.Compiler implementation: Lisp on ASP.NET anyone?</li>
+    </ul>
+  </li>
+
+  <li>Optimisations:
+
+    <ul>
+      <li><p id="p4">Tail call optimisation: replace the <em>call</em>, <em>ret</em> sequence with <em>tail.call</em>, <em>ret</em>. This is less an optmisation and more a necessity, since recursion is currently the only way to implement looping, and we need tail calls to avoid overflowing the stack. The <em>tail</em> opcode prefix is recognised directly by the CLR: another approach would be for the compiler to implement a recursive function as a <code>while</code> loop. Tail calling on .NET is a moderately interesting topic in its own right: see the links from <a href="http://stackoverflow.com/questions/491376/why-doesnt-net-c-eliminate-tail-recursion">this Stack Overflow question</a> to get an idea of the issues involved.</p>
+<p id="p5"><strong class="alt">Edit:</strong> as <a href="http://www.paulhollingsworth.com/">Paul</a> points out, the trick is to optimise all tail calls, not just tail recursion. It's easy to come up with a pair of functions that call each other: if we just looked for recursive calls back to the same function, we'd blow up the stack in this situation. Luckily for us, the IL <em>tail</em> prefix is valid on any call, as long as it comes just before a <em>ret</em>, so we don't need to be too clever.</p></li>
+
+      <li>Arithmetic optimisations: something as simple as simplifying constant expressions at compile time</li>
+    </ul>
+  </li>
+
+  <li>A command line compiler, with parameters similar to those of <em>csc.exe</em> or <em>fsc.exe</em></li>
+
+  <li>Don't generate IL directly to <code>ILGenerator</code>; assemble F# data structures representing the IL, so that we can apply IL optimisations using standard F# constructs such as pattern matching</li>
+
+  <li>Implement flow control within the compiler on top of a flow control graph data structure, along the lines of <a href="http://en.wikipedia.org/wiki/Basic_block">basic blocks</a>. This will make optimisations of program flow easier to implement.</li>
+</ul>
+<p id="p6">Let me know if you've found this series useful so far, or if you have any corrections or suggestions on what I've been writing.</p>
+]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Lisp compiler in F#: IL generation]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html" />
+    <id>http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html</id>
+    <updated>2009-06-06T14:47:14Z</updated>
+    <published>2009-06-06T14:47:14Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Lisp compiler in F#: IL generation]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-il-generation.html"><![CDATA[
+<p id="p1">This is part 4 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a>, <a href="/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html">Expression trees and .NET methods</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">What we've done up to this point is:</p>
+<ul>
+  <li>Taken a string representing a Lisp program and turned it into an F# data structure representing a list of <a href="http://en.wikipedia.org/wiki/S_expression">s-expressions</a></li>
+
+  <li>Reformatted these s-expressions so we can take some shortcuts when we generate IL</li>
+
+  <li>Written a couple of helper functions that pick the right overload of a .NET method (which our hello world program needs in order to call <code>Console.WriteLine</code>)</li>
+</ul>
+<p id="p3">In this post I'm going to cover the final step in the compilation process, the generation of the IL itself. By IL, I'm referring to the <a href="http://en.wikipedia.org/wiki/Common_Intermediate_Language">Common Intermediate Language</a>, the low-level machine-independent opcodes that the .NET JIT compiler turns into native machine code at runtime. The virtual machine on which IL is based operates using a stack for operands and results, rather than the registers that are found on x86 processors. (Using a virtual stack makes IL more portable across CPUs with different register layouts; it's up to the JIT compiler to assign machine registers to stack locations as they're needed.) You can view the IL contained within any .NET assembly using the <em>ildasm</em> tool, which is included with Visual Studio and in the .NET SDK, or within <a href="http://www.red-gate.com/products/reflector/">.NET Reflector</a>.</p>
+<p id="p4">An IL hello world looks like this:</p>
+
+<div class="pygments_murphy"><pre>// Push a System.String instance onto the stack. 
+// The words "Hello world" are embedded within the executable.
+ldstr      "Hello, world"
+
+// Pop one System.Object instance from the stack and call 
+// System.Console.WriteLine. This method is declared void, so 
+// nothing is pushed onto the stack after the method returns.
+call       void [mscorlib]System.Console::WriteLine(object)
+
+// Return to this method's caller
+ret
+</pre></div>
+
+
+
+<p id="p5">Along with the IL, the assembly -- an EXE or a DLL -- contains various metadata, which describes the types and methods defined within the assembly (such as the <code>Program</code> class and its <code>Main</code> method that contains our code above, and the words "Hello world"), as well as the references the assembly's code makes to the outside world (such as the details of the <code>System.Console.WriteLine</code> method). We don't have to write any of this metadata ourselves, though: the <code>System.Reflection.Emit</code> namespace contains a nice set of types that allow us to construct assemblies, types and methods without worrying about putting together the bytes of the final EXE or DLL file.</p>
+<p id="p6">We put together the IL itself using the <code>ILGenerator</code> class:</p>
+
+<div class="pygments_murphy"><pre><span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldstr</span><span class="o">,</span> <span class="s2">"Hello world"</span><span class="o">)</span>
+<span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Call</span><span class="o">,</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="nc">Console</span><span class="o">&gt;.</span><span class="nc">GetMethod</span><span class="o">(</span><span class="s2">"WriteLine"</span><span class="o">,</span> <span class="o">[|</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="n">obj</span><span class="o">&gt;</span> <span class="o">|]))</span>
+<span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ret</span><span class="o">)</span>
+</pre></div>
+
+
+
+<p id="p7">For the purposes of this blog post, we're going to simplify the code generation even further, and use the <code>DynamicMethod</code> class, which allows us to generate a stream of IL opcodes in memory, then execute them, without having to write a full assembly file to disk. (The code on GitHub demonstrates both approaches -- see <a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/Compiler.fs">Compiler.fs</a> for the code that writes an assembly file.)</p>
+<p id="p8">We're going to write the compile function that I talked about in the last post:</p>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">compile</span>
+    <span class="o">(</span><span class="n">generator</span> <span class="o">:</span> <span class="nc">ILGenerator</span><span class="o">)</span>
+    <span class="o">(</span><span class="n">defineMethod</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="nc">Type</span> <span class="o">-&gt;</span> <span class="nc">Type</span> <span class="kt">list</span> <span class="o">-&gt;</span> <span class="o">#</span><span class="nc">MethodInfo</span> <span class="o">*</span> <span class="nc">ILGenerator</span><span class="o">)</span>
+    <span class="o">(</span><span class="n">env</span> <span class="o">:</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;)</span>
+    <span class="o">(</span><span class="n">value</span> <span class="o">:</span> <span class="nc">LispVal</span><span class="o">)</span> 
+    <span class="o">:</span> <span class="o">(</span><span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;)</span>
+</pre></div>
+
+
+
+<p id="p9">We'll have given to us: an <code>ILGenerator</code> instance; a function that creates a new method and returns an <code>ILGenerator</code> for that method; a map containing any variables and functions declared earlier on in this function; and a <code>LispVal</code> representing the line of code we're being asked to generate IL for. We'll return a map containing all of the variables and functions originally passed to us, plus any new variables or functions we might have declared in this line of code.</p>
+<p class="alt" id="p10"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/CodeGenerator.fs">CodeGenerator.fs</a></p>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">compile</span> <span class="o">(</span><span class="n">generator</span> <span class="o">:</span> <span class="nc">ILGenerator</span><span class="o">)</span> <span class="n">defineMethod</span> <span class="o">=</span>
+</pre></div>
+
+
+
+<div class="notice">
+  <h2 class="alt">Detour: Currying and partial application</h2>
+
+  <p id="p11">First of all, notice that the F# declaration of the <code>compile</code> function looks nothing like the function interface I just talked about. That's because we're going to define <code>compile</code> as a function that accepts two arguments and returns another function that accepts the next one, which returns yet another function that accepts the last argument and returns a value. In fact, all F# functions work this way, as functions that accept one argument and return another function that accepts the next. From the point of view of the caller, it's not possible to tell the difference between a function written like this:</p>
+ 
+
+<div class="pygments_murphy"><pre><span class="o">&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="k">let</span> <span class="n">f</span> <span class="o">=</span> 
+    <span class="k">fun</span> <span class="n">a</span> <span class="o">-&gt;</span>
+        <span class="k">fun</span> <span class="n">b</span> <span class="o">-&gt;</span>
+            <span class="k">fun</span> <span class="n">c</span> <span class="o">-&gt;</span>
+                <span class="k">fun</span> <span class="n">d</span> <span class="o">-&gt;</span> 
+                    <span class="n">printfn</span> <span class="s2">"called function f with %d %d %d %d"</span> <span class="n">a</span> <span class="n">b</span> <span class="n">c</span> <span class="n">d</span>
+<span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;</span>
+</pre></div>
+
+
+
+
+  <p id="p12">and one like this:</p>
+ 
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="n">f</span> <span class="n">a</span> <span class="n">b</span> <span class="n">c</span> <span class="n">d</span> <span class="o">=</span> 
+    <span class="n">printfn</span> <span class="s2">"called function f with %d %d %d %d"</span> <span class="n">a</span> <span class="n">b</span> <span class="n">c</span> <span class="n">d</span>
+</pre></div>
+
+
+
+
+  <p id="p13">In the first example, the programmer defines <code>f</code> as a series of functions in which you pass a value to one function in order to obtain the next: in this case, the programmer is said to be <a href="http://en.wikipedia.org/wiki/Currying">currying</a>. In the second example, the programmer states all of <code>f</code>'s parameters on one line, yet we can still call <code>f</code> piece by piece ("partially apply") if we want to: the F# language performs the currying automatically.</p>
+</div>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">compile'</span> <span class="n">env</span> <span class="o">=</span>
+</pre></div>
+
+
+
+<p id="p14">So far we've consumed the <code>generator</code>, <code>defineMethod</code> and <code>env</code> parameters. Now we're writing a <code>compile'</code> function, which we're going to use not only when the <code>compile</code> function itself is called, but also recursively from within the <code>compile'</code> function. We do this because we want to be able to generate IL using the same <code>generator</code> and <code>defineMethod</code> parameters originally passed to us, but with different values for <code>env</code> and <code>value</code>.</p>
+
+<div class="pygments_murphy"><pre><span class="k">function</span>
+<span class="o">|</span> <span class="nc">ArgRef</span> <span class="n">index</span> <span class="o">-&gt;</span> 
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldarg</span><span class="o">,</span> <span class="n">index</span><span class="o">)</span>
+    <span class="n">env</span>
+</pre></div>
+
+
+
+<p id="p15"><strong class="alt">ArgRef:</strong> The <code>compile'</code> function immediately performs pattern matching against its last argument: the F# <code>function</code> keyword acts like <code>fun</code> and <code>match</code> combined. We'll handle each of the <code>LispVal</code> cases in alphabetical order: first is <code>ArgRef</code>, which is a value we'll find within a function's environment. There's one of these for each of the function's parameters, and since IL refers to its arguments using numerical indices, so will we. We use the <em>ldarg</em> opcode to fetch the <code>index</code>'th argument and push it onto the VM stack. We don't change the function's environment, so we return <code>env</code> unchanged.</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">Atom</span> <span class="n">a</span> <span class="o">-&gt;</span> 
+    <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">ident</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env</span>
+</pre></div>
+
+
+
+<p id="p16"><strong class="alt">Atom:</strong> An atom is a string that refers to a variable or function in the function's environment. We deal with these by calling <code>ident</code> to look up the string in the current environment, then recursively calling <code>compile'</code> to generate the IL for whatever <code>ident</code> finds. In practice this case is only used for variable and function argument lookups; function names are also atoms, but the only thing we do to functions is call them, and we call functions lower down when we encounter an atom within <code>List</code> node. (In a later version we might want to treat function names that appear outside of function calls like C# does, and turn them into delegates.)</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">Bool</span> <span class="n">b</span> <span class="o">-&gt;</span> 
+    <span class="k">let</span> <span class="n">opCode</span> <span class="o">=</span> 
+        <span class="k">if</span> <span class="n">b</span> 
+        <span class="k">then</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldc_I4_1</span> 
+        <span class="k">else</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldc_I4_0</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span> <span class="n">opCode</span>
+    <span class="n">env</span>
+</pre></div>
+
+
+
+<p id="p17"><strong class="alt">Bool:</strong> Bools are the first of our constants to appear. IL represents bools as integers, and it has built-in opcodes whose purpose is to load an integer between 0 and 8 onto the stack, so we generate either <code>ldc.i4.1</code> for true or <code>ldc.i4.0</code> for false here. (Our handling of true and false is completely wrong from a Lisp point of view, which uses <code>nil</code> for false and anything else for true.)</p>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="n">emitIf</span> <span class="n">opCode</span> <span class="n">env</span> <span class="n">thenValue</span> <span class="n">elseValue</span> <span class="o">=</span>
+    <span class="k">let</span> <span class="n">thenLabel</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="nc">DefineLabel</span><span class="bp">()</span>
+    <span class="k">let</span> <span class="n">endLabel</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="nc">DefineLabel</span><span class="bp">()</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="n">opCode</span><span class="o">,</span> <span class="n">thenLabel</span><span class="o">)</span>
+    <span class="n">elseValue</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">ignore</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Br</span><span class="o">,</span> <span class="n">endLabel</span><span class="o">)</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">MarkLabel</span> <span class="n">thenLabel</span>
+    <span class="n">thenValue</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">ignore</span>
+    <span class="n">generator</span><span class="o">.</span><span class="nc">MarkLabel</span> <span class="n">endLabel</span>
+
+<span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="o">(</span><span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Equal</span><span class="o">,</span> <span class="o">[</span> <span class="n">a</span><span class="o">;</span> <span class="n">b</span> <span class="o">]),</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">elseValue</span><span class="o">)</span> <span class="o">-&gt;</span>
+    <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env</span>
+    <span class="k">let</span> <span class="n">env''</span> <span class="o">=</span> <span class="n">b</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env'</span>
+    <span class="n">emitIf</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Beq</span> <span class="n">env''</span> <span class="n">thenValue</span> <span class="n">elseValue</span>
+    <span class="n">env''</span>
+
+<span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="o">(</span><span class="n">testValue</span><span class="o">,</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">elseValue</span><span class="o">)</span> <span class="o">-&gt;</span>
+    <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">testValue</span> <span class="o">|&gt;</span> <span class="n">compile'</span> <span class="n">env</span>
+    <span class="n">emitIf</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Brtrue</span> <span class="n">env'</span> <span class="n">thenValue</span> <span class="n">elseValue</span>
+    <span class="n">env'</span>
+</pre></div>
+
+
+
+<p id="p18"><strong class="alt">IfPrimitive:</strong> The built-in <code>(if test then else)</code> form. There's a special case for <code>(if (= a b) then else)</code>, because IL has its own combined branch-on-equal opcode, <em>beq</em>. If we defined more built-in comparison forms besides <code>Equal</code>, we'd have more special cases here for the other opcodes.</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">LambdaDef</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+    <span class="k">raise</span>
+        <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">NotImplementedException</span><span class="o">(</span><span class="s2">"didn't expect lambda outside variable"</span><span class="o">)</span>
+
+<span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+    <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"can't compile lambda - try invoking it instead"</span><span class="o">)</span>
+</pre></div>
+
+
+
+<p id="p19"><strong class="alt">LambdaDef, LambdaRef:</strong> Here we state two limitations on functions: the first happens if we try to use the <code>(lambda)</code> form outside of a variable declaration, and the second occurs if we try to use a function name outside of a function call, which I mentioned above. In a future version we might want to turn these into .NET delegates, although at the moment we have no way of specifying the delegate type (in fact, we have no way to instantiate instances of .NET objects at all).</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="n">a</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+    <span class="k">match</span> <span class="n">lambdaIdent</span> <span class="n">args</span> <span class="n">env</span> <span class="n">a</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">(</span><span class="n">methodInfo</span><span class="o">,</span> <span class="n">isParamArray</span><span class="o">,</span> <span class="n">parameterTypes</span><span class="o">)</span> <span class="o">-&gt;</span> 
+</pre></div>
+
+
+
+<p id="p20"><strong class="alt">List:</strong> Here's where we generate .NET method calls, which in Lisp appear as a list, with the function name (an atom) appearing first, followed by the function's arguments, if any. We start by looking up the function name in the environment and expecting it to resolve to a <code>LambdaRef</code>. I talked about the <code>lambdaIdent</code> function in the last post, and it is this function that picks the right method overload given a set of arguments.</p>
+
+<div class="pygments_murphy"><pre>        <span class="k">let</span> <span class="n">emitBoxed</span> <span class="o">(</span><span class="n">expectedType</span> <span class="o">:</span> <span class="o">#</span><span class="nc">Type</span><span class="o">)</span> <span class="n">env</span> <span class="n">x</span> <span class="o">=</span>
+            <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">compile'</span> <span class="n">env</span> <span class="n">x</span>
+            <span class="k">match</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">x</span> <span class="k">with</span>
+            <span class="o">|</span> <span class="n">a</span> <span class="k">when</span> <span class="n">not</span> <span class="n">expectedType</span><span class="o">.</span><span class="nc">IsValueType</span> <span class="o">&amp;&amp;</span> <span class="n">a</span><span class="o">.</span><span class="nc">IsValueType</span> <span class="o">-&gt;</span> 
+                <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Box</span><span class="o">,</span> <span class="n">a</span><span class="o">)</span>
+
+            <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span>
+                <span class="bp">()</span>
+
+            <span class="n">env'</span>
+</pre></div>
+
+
+
+<p id="p21">A helper function to automatically <a href="http://en.wikipedia.org/wiki/Boxing_(computer_science)">box</a> instances of value types when needed, so that, for instance, we can pass ints to <code>Console.WriteLine</code>. Note that we need to annotate the F# function signature: <code>expectedType : #Type</code> denotes that <code>expectedType</code> is <code>Type</code>, or one of <code>Type</code>'s subclasses. We do this in order to access its <code>IsValueType</code> property.</p>
+
+<div class="pygments_murphy"><pre>        <span class="k">let</span> <span class="k">rec</span> <span class="n">emitArgs</span> <span class="o">(</span><span class="n">parameterTypes</span> <span class="o">:</span> <span class="o">#</span><span class="nc">Type</span> <span class="kt">list</span><span class="o">)</span> <span class="n">env</span> <span class="n">args</span> <span class="o">=</span>
+            <span class="k">match</span> <span class="n">args</span><span class="o">,</span> <span class="n">parameterTypes</span> <span class="k">with</span>
+            <span class="o">|</span> <span class="n">arg</span> <span class="o">::</span> <span class="n">otherArgs</span><span class="o">,</span> <span class="o">[</span> <span class="n">parameterType</span> <span class="o">]</span> <span class="k">when</span> <span class="n">isParamArray</span> <span class="o">-&gt;</span>
+                <span class="k">let</span> <span class="n">elementType</span> <span class="o">=</span> <span class="n">parameterType</span><span class="o">.</span><span class="nc">GetElementType</span><span class="bp">()</span>
+
+                <span class="k">let</span> <span class="k">rec</span> <span class="n">emitArrayInit</span> <span class="n">env</span> <span class="n">position</span> <span class="o">=</span>
+                    <span class="k">function</span>
+                    <span class="o">|</span> <span class="n">value</span> <span class="o">::</span> <span class="n">values</span> <span class="o">-&gt;</span>
+                        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Dup</span><span class="o">)</span>
+                        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldc_I4</span><span class="o">,</span> <span class="kt">int</span> <span class="n">position</span><span class="o">)</span>
+                        <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">emitBoxed</span> <span class="n">elementType</span> <span class="n">env</span> <span class="n">value</span>
+                        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Stelem</span><span class="o">,</span> <span class="n">elementType</span><span class="o">)</span>
+                        <span class="n">emitArrayInit</span> <span class="n">env'</span> <span class="o">(</span><span class="n">position</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="n">values</span>
+
+                    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                        <span class="n">env</span>
+
+                <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldc_I4</span><span class="o">,</span> <span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">args</span><span class="o">)</span>
+                <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Newarr</span><span class="o">,</span> <span class="n">elementType</span><span class="o">)</span>
+                <span class="n">emitArrayInit</span> <span class="n">env</span> <span class="mi">0</span> <span class="n">args</span>
+
+            <span class="o">|</span> <span class="n">arg</span> <span class="o">::</span> <span class="n">otherArgs</span><span class="o">,</span> <span class="n">parameterType</span> <span class="o">::</span> <span class="n">otherParameterTypes</span> <span class="o">-&gt;</span>
+                <span class="n">emitArgs</span> <span class="n">otherParameterTypes</span> <span class="o">(</span><span class="n">emitBoxed</span> <span class="n">parameterType</span> <span class="n">env</span> <span class="n">arg</span><span class="o">)</span> <span class="n">otherArgs</span>
+
+            <span class="o">|</span> <span class="o">[</span> <span class="o">],</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                <span class="n">env</span>
+
+            <span class="o">|</span> <span class="o">_</span> <span class="o">::</span> <span class="o">_,</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                <span class="k">raise</span> <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">InvalidOperationException</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"got %d too many args"</span> <span class="o">&lt;|</span> <span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">args</span><span class="o">)</span>
+
+            <span class="o">|</span> <span class="o">[</span> <span class="o">],</span> <span class="o">_</span> <span class="o">::</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+                <span class="k">raise</span> <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">InvalidOperationException</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"got %d too few args"</span> <span class="o">&lt;|</span> <span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">parameterTypes</span><span class="o">)</span>
+
+        <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="n">emitArgs</span> <span class="n">parameterTypes</span> <span class="n">env</span>
+        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Call</span><span class="o">,</span> <span class="n">methodInfo</span><span class="o">)</span>
+        <span class="n">env'</span>
+</pre></div>
+
+
+
+<p id="p22">The <code>emitArgs</code> helper function emits the IL to put the function's arguments on the stack. For functions that don't take a variable number of arguments we can do this by calling <code>compile'</code> on each node, since <code>compile'</code> leaves the node's value on the VM stack. Calling variable argument functions (again, such as <code>Console.WriteLine</code>) is slightly more intricate, since the last parameter is an array. We use the <em>newarr</em> opcode to instantiate the array, then <em>stelem</em> in a loop to insert arguments into the array one by one.</p>
+<p id="p23">Since we only deal with static functions at the moment (whether they're .NET methods or our own lambdas) it's safe to use the <em>call</em> opcode in all circumstances. If we were calling instance methods we'd need to be able to call virtual methods using <em>callvirt</em>, and we'd need to automatically box value types when calling interface methods (such as <code>4.CompareTo(5)</code>) and methods defined on <code>System.Object</code> (such as <code>4.ToString()</code>). By limiting ourselves to static methods we've avoided these details.</p>
+
+<div class="pygments_murphy"><pre>    <span class="o">|</span> <span class="n">v</span> <span class="o">-&gt;</span> <span class="k">raise</span> 
+        <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">NotImplementedException</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"can't invoke variable %A"</span> <span class="n">v</span><span class="o">)</span>
+
+<span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="n">fn</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> 
+    <span class="k">raise</span> <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">NotImplementedException</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"can't invoke value %A"</span> <span class="n">fn</span><span class="o">)</span>
+
+<span class="o">|</span> <span class="nc">List</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+    <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"can't invoke empty list"</span><span class="o">)</span>
+</pre></div>
+
+
+
+<p id="p24">Because we don't know about delegates, we can't call anything other than real functions.</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="n">op</span><span class="o">,</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> 
+    <span class="k">match</span> <span class="n">args</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="n">arg</span> <span class="o">::</span> <span class="n">otherArgs</span> <span class="o">-&gt;</span>
+        <span class="k">let</span> <span class="n">opCode</span> <span class="o">=</span> 
+            <span class="k">match</span> <span class="n">op</span> <span class="k">with</span>
+            <span class="o">|</span> <span class="nc">Add</span> <span class="o">-&gt;</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Add</span>
+            <span class="o">|</span> <span class="nc">Subtract</span> <span class="o">-&gt;</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Sub</span>
+            <span class="o">|</span> <span class="nc">Multiply</span> <span class="o">-&gt;</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Mul</span>
+            <span class="o">|</span> <span class="nc">Divide</span> <span class="o">-&gt;</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Div</span>
+            <span class="o">|</span> <span class="nc">Equal</span> <span class="o">-&gt;</span> <span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ceq</span>
+
+        <span class="k">let</span> <span class="n">coerceToInt</span> <span class="n">env</span> <span class="n">x</span> <span class="o">=</span> 
+            <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">compile'</span> <span class="n">env</span> <span class="n">x</span>
+            <span class="k">match</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">x</span> <span class="k">with</span>
+            <span class="o">|</span> <span class="n">t</span> <span class="k">when</span> <span class="n">t</span> <span class="o">=</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="n">obj</span><span class="o">&gt;</span> <span class="o">-&gt;</span> <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Call</span><span class="o">,</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="nc">Convert</span><span class="o">&gt;.</span><span class="nc">GetMethod</span><span class="o">(</span><span class="s2">"ToInt32"</span><span class="o">,</span> <span class="o">[|</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="n">obj</span><span class="o">&gt;</span> <span class="o">|]))</span>
+            <span class="o">|</span> <span class="n">t</span> <span class="k">when</span> <span class="n">t</span> <span class="o">=</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+            <span class="o">|</span> <span class="n">t</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="k">new</span> <span class="nc">NotImplementedException</span><span class="o">(</span><span class="s2">"expected int, got "</span> <span class="o">+</span> <span class="n">t</span><span class="o">.</span><span class="nc">Name</span><span class="o">)</span>
+            <span class="n">env'</span>
+
+        <span class="k">let</span> <span class="n">emitBinaryOp</span> <span class="n">env</span> <span class="n">arg</span> <span class="o">=</span>
+            <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">coerceToInt</span> <span class="n">env</span> <span class="n">arg</span>
+            <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span> <span class="n">opCode</span>
+            <span class="n">env'</span>
+
+        <span class="k">let</span> <span class="n">env'</span> <span class="o">=</span> <span class="n">coerceToInt</span> <span class="n">env</span> <span class="n">arg</span>
+        <span class="n">otherArgs</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">fold</span> <span class="n">emitBinaryOp</span> <span class="n">env'</span>
+
+    <span class="o">|</span> <span class="n">l</span> <span class="o">-&gt;</span> 
+        <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"cannot compile list %A"</span> <span class="n">l</span><span class="o">)</span>
+</pre></div>
+
+
+
+<p id="p25"><strong class="alt">ListPrimitive:</strong> The built-in forms for arithmetic and equality are defined as <code>ListPrimitive</code> nodes, and the IL for each of these is fairly similar. Note that our arithmetic operators can handle any number of arguments, and we handle this by pushing the first value onto the VM stack, then using F#'s <code>fold</code> function to apply one of IL's binary operators to each pair. We use <code>Convert.ToInt32</code> to coerce any strange values to integers. (Note that <code>List.fold</code> is new in the F# May 2009 CTP -- previously this function was called <code>List.fold_left</code>, to match OCaml.)</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">Number</span> <span class="n">n</span> <span class="o">-&gt;</span> 
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldc_I4</span><span class="o">,</span> <span class="n">n</span><span class="o">)</span>
+    <span class="n">env</span>
+
+<span class="o">|</span> <span class="nc">String</span> <span class="n">s</span> <span class="o">-&gt;</span> 
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldstr</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span>
+    <span class="n">env</span>
+</pre></div>
+
+
+
+<p id="p26"><strong class="alt">Number, String:</strong> Another couple of constant types: all numbers are integers, and we use the <em>ldc.i4</em> opcode to push them onto the stack. We saw <em>ldstr</em> in the hello world example at the top of this post.</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">VariableDef</span> <span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">value</span><span class="o">)</span> <span class="o">-&gt;</span>
+    <span class="k">match</span> <span class="n">value</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="o">(</span><span class="n">paramNames</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">let</span> <span class="o">(</span><span class="n">lambdaInfo</span><span class="o">,</span> <span class="n">lambdaGenerator</span><span class="o">)</span> <span class="o">=</span> 
+            <span class="n">defineMethod</span>
+                <span class="n">name</span>
+                <span class="o">(</span><span class="n">typeOf</span> <span class="n">env</span> <span class="n">body</span><span class="o">)</span>
+                <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">replicate</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">length</span> <span class="n">paramNames</span><span class="o">)</span> <span class="o">(</span><span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;))</span>
+
+        <span class="k">let</span> <span class="n">envWithLambda</span> <span class="o">=</span> 
+            <span class="n">env</span> 
+            <span class="o">|&gt;</span> <span class="o">(</span><span class="nc">LambdaRef</span> <span class="o">(</span><span class="n">lambdaInfo</span><span class="o">,</span> <span class="bp">false</span><span class="o">,</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;)</span> <span class="n">paramNames</span><span class="o">))</span> 
+                <span class="o">|&gt;</span> <span class="nn">Map</span><span class="p">.</span><span class="n">add</span> <span class="n">name</span><span class="o">)</span>
+
+        <span class="k">let</span> <span class="o">(</span><span class="n">envWithLambdaArgs</span><span class="o">,</span> <span class="o">_)</span> <span class="o">=</span> 
+            <span class="n">paramNames</span> 
+            <span class="o">|&gt;</span> <span class="o">((</span><span class="n">envWithLambda</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span> 
+                <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">fold</span> <span class="o">(</span><span class="k">fun</span> <span class="o">(</span><span class="n">env</span><span class="o">,</span> <span class="n">index</span><span class="o">)</span> <span class="n">name</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="nn">Map</span><span class="p">.</span><span class="n">add</span> <span class="n">name</span> <span class="o">(</span><span class="nc">ArgRef</span> <span class="n">index</span><span class="o">)</span> <span class="n">env</span><span class="o">,</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)))</span>
+
+        <span class="n">body</span> <span class="o">|&gt;</span> <span class="n">compile</span> <span class="n">lambdaGenerator</span> <span class="n">defineMethod</span> <span class="n">envWithLambdaArgs</span> <span class="o">|&gt;</span> <span class="n">ignore</span>
+        <span class="n">lambdaGenerator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ret</span><span class="o">)</span>
+        <span class="n">envWithLambda</span>
+
+    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span>
+        <span class="k">let</span> <span class="n">local</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="nc">DeclareLocal</span><span class="o">(</span><span class="n">typeOf</span> <span class="n">env</span> <span class="n">value</span><span class="o">)</span>
+        <span class="k">let</span> <span class="n">envWithVariable</span> <span class="o">=</span> <span class="nn">Map</span><span class="p">.</span><span class="n">add</span> <span class="n">name</span> <span class="o">(</span><span class="nc">VariableRef</span> <span class="n">local</span><span class="o">)</span> <span class="n">env</span>
+        <span class="n">compile'</span> <span class="n">envWithVariable</span> <span class="n">value</span> <span class="o">|&gt;</span> <span class="n">ignore</span>
+        <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Stloc</span><span class="o">,</span> <span class="n">local</span><span class="o">)</span>
+        <span class="n">envWithVariable</span>
+</pre></div>
+
+
+
+<p id="p27"><strong class="alt">VariableDef:</strong> We use <code>VariableDef</code> nodes to declare both functions and variables. There are in fact three possibilities here:</p>
+<ol>
+  <li><code>(define func (arg1 arg2) body)</code></li>
+
+  <li><code>(define func (lambda (arg1 arg2) body))</code></li>
+
+  <li><code>(define variable value)</code></li>
+</ol>
+<p id="p28">The first two cases are treated the same (in fact, the first case is transformed to the second by <code>insertPrimitives</code>, which we saw in the last post), and both of them define a new named function:</p>
+<ol>
+  <li>We call <code>defineMethod</code> to obtain a <code>MethodInfo</code> and an <code>ILGenerator</code> for a new method</li>
+
+  <li>So that the function can call itself recursively, we insert the function into the environment before we start generating the function's IL. This changed environment is the one that feeds into the next line of code in the function where the declaration appears.</li>
+
+  <li>We set up a new environment based on the declaring function. This new environment gains a set of <code>ArgRef</code> values that represent the function's arguments.</li>
+
+  <li>We call <code>compile</code> recursively, with the new <code>ILGenerator</code> that <code>defineMethod</code> gave us</li>
+</ol>
+<div class="notice">
+  <h2 class="alt">Detour: Why do we keep a list of parameters if we've got a MethodInfo?</h2>
+
+  <p id="p29">I had originally wanted to represent both our own functions and .NET methods with a .NET <code>MethodInfo</code> object: we need to know the types of the function's parameters in order to call it, and I assumed we could call <code>MethodInfo.GetParameters</code> to obtain them. Unfortunately we're only allowed to call GetParameters on real methods, not <code>DynamicMethod</code> or <code>MethodBuilder</code>, so I had to track the parameter types explicitly.</p>
+</div>
+<p id="p30">To declare a variable, we first use <code>ILGenerator.DeclareLocal</code> to allocate a new IL local variable, then use the <em>stloc</em> opcode to assign a value to it. As with function declarations, we change the function's environment, and return the changed environment so that it can be fed into the next line of code.</p>
+
+<div class="pygments_murphy"><pre><span class="o">|</span> <span class="nc">VariableRef</span> <span class="n">local</span> <span class="o">-&gt;</span> 
+    <span class="n">generator</span><span class="o">.</span><span class="nc">Emit</span><span class="o">(</span><span class="nn">OpCodes</span><span class="p">.</span><span class="nc">Ldloc</span><span class="o">,</span> <span class="n">local</span><span class="o">)</span>
+    <span class="n">env</span>
+</pre></div>
+
+
+
+<p id="p31"><strong class="alt">VariableRef:</strong> Last in our alphabetical list of expression tree nodes is <code>VariableRef</code>, which is the node we inserted into the environment just a moment ago to represent local variables. IL gives us the <em>ldloc</em> opcode, which fetches the value from a local variable and places it into the VM stack.</p>
+
+<div class="pygments_murphy"><pre><span class="n">compile'</span>
+</pre></div>
+
+
+
+<p id="p32">In the last line of code, we're outside of the <code>compile'</code> definition and back in <code>compile</code>. Recall that we declared <code>compile</code> as a function that accepts two arguments and returns a function that accepts two more: here we're returning that function.</p>
+<p id="p33">To finish up, let's compile the Lisp code I wrote in the last post, which generates most of the features in our code generator:</p>
+
+<div class="pygments_murphy"><pre>(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))
+(Console.WriteLine "6! = {0}" (fact 6))
+(Console.WriteLine "What is your name?")
+(Console.WriteLine "Hello, {0}" (Console.ReadLine))
+</pre></div>
+
+
+
+<p class="alt" id="p34">IL disassembly</p>
+
+<div class="pygments_murphy"><pre>.class public auto ansi sealed Program
+       extends [mscorlib]System.Object
+{
+  .method public static void  Main() cil managed
+  {
+    // (Console.WriteLine "6! = {0}" (fact 6))
+    IL_0000:  ldstr      "6! = {0}"
+    IL_0005:  ldc.i4     0x6
+    IL_000a:  call       int32 Program::fact(int32)
+    IL_000f:  box        [mscorlib]System.Int32
+    IL_0014:  call       void [mscorlib]System.Console::WriteLine(string, object)
+
+    // (Console.WriteLine "What is your name?")
+    IL_0019:  ldstr      "What is your name\?"
+    IL_001e:  call       void [mscorlib]System.Console::WriteLine(object)
+
+    // (Console.WriteLine "Hello, {0}" (Console.ReadLine))
+    IL_0023:  ldstr      "Hello, {0}"
+    IL_0028:  call       string [mscorlib]System.Console::ReadLine()
+    IL_002d:  call       void [mscorlib]System.Console::WriteLine(string, object)
+    IL_0032:  ret
+  }
+
+  .method private static int32  fact(int32 A_0) cil managed
+  {
+    // (if (= n 0) ...
+    IL_0000:  ldarg      A_0
+    IL_0004:  nop
+    IL_0005:  nop
+    IL_0006:  ldc.i4     0x0
+    IL_000b:  beq        IL_002d
+
+    // else: (* n (fact (- n 1)))
+    IL_0010:  ldarg      A_0
+    IL_0014:  nop
+    IL_0015:  nop
+    IL_0016:  ldarg      A_0
+    IL_001a:  nop
+    IL_001b:  nop
+    IL_001c:  ldc.i4     0x1
+    IL_0021:  sub
+    IL_0022:  call       int32 Program::fact(int32)
+    IL_0027:  mul
+    IL_0028:  br         IL_0032
+
+    // then: 1
+    IL_002d:  ldc.i4     0x1
+    IL_0032:  ret
+  }
+}
+</pre></div>
+
+
+
+<p id="p35">And just for fun, using Reflector to disassemble into C#:</p>
+<p class="alt" id="p36">C# decompilation</p>
+
+<div class="pygments_murphy"><pre><span class="k">public</span> <span class="k">sealed</span> <span class="k">class</span> <span class="nc">Program</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="k">static</span> <span class="kt">int</span> <span class="nf">fact</span><span class="p">(</span><span class="kt">int</span> <span class="n">num1</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">num1</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span> <span class="p">?</span> <span class="m">1</span> <span class="p">:</span> <span class="p">(</span><span class="n">num1</span> <span class="p">*</span> <span class="n">fact</span><span class="p">(</span><span class="n">num1</span> <span class="p">-</span> <span class="m">1</span><span class="p">)));</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"6! = {0}"</span><span class="p">,</span> <span class="n">fact</span><span class="p">(</span><span class="m">6</span><span class="p">));</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"What is your name?"</span><span class="p">);</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"Hello, {0}"</span><span class="p">,</span> <span class="n">Console</span><span class="p">.</span><span class="n">ReadLine</span><span class="p">());</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+
+
+
+]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Lisp compiler in F#: Expression trees and .NET methods]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html" />
+    <id>http://www.partario.com/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html</id>
+    <updated>2009-06-01T22:36:34Z</updated>
+    <published>2009-06-01T22:36:34Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Lisp compiler in F#: Expression trees and .NET methods]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-expression-trees-and-net-methods.html"><![CDATA[
+<p id="p1">This is part 3 of a series of posts on my Lisp compiler written in F#. Previous entries: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a>, <a href="/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html">Parsing with fslex and fsyacc</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">Thanks to <em>fslex</em>, <em>fsyacc</em> and the <code>LispVal</code> type, we've ended up with an expression tree that represents our program. To summarise, we've turned this:</p>
+
+<div class="pygments_murphy"><pre>(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))
+(Console.WriteLine "6! = {0}" (fact 6))
+(Console.WriteLine "What is your name?")
+(Console.WriteLine "Hello, {0}" (Console.ReadLine))
+</pre></div>
+
+
+
+<p id="p3">...into an F# data structure that looks like this:</p>
+
+<div class="pygments_murphy"><pre><span class="o">[</span><span class="nc">List</span>
+   <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"define"</span><span class="o">;</span> <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"fact"</span><span class="o">;</span> <span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">];</span>
+    <span class="nc">List</span>
+      <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"if"</span><span class="o">;</span> <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"="</span><span class="o">;</span> <span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">0</span><span class="o">];</span> <span class="nc">Number</span> <span class="mi">1</span><span class="o">;</span>
+       <span class="nc">List</span>
+         <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"*"</span><span class="o">;</span> <span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span>
+          <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"fact"</span><span class="o">;</span> <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"-"</span><span class="o">;</span> <span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">1</span><span class="o">]]]]];</span>
+ <span class="nc">List</span>
+   <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"6! = {0}"</span><span class="o">;</span> <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"fact"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">6</span><span class="o">]];</span>
+ <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"What is your name?"</span><span class="o">];</span>
+ <span class="nc">List</span>
+   <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"Hello, {0}"</span><span class="o">;</span>
+    <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.ReadLine"</span><span class="o">]]]</span>
+</pre></div>
+
+
+
+<p id="p4">We'd like to turn this data structure into actual IL, which we can execute. I'll assume some restrictions:</p>
+<ul>
+  <li>We're going to compile, not interpret, and we're going to target .NET IL, not x86 machine code, <a href="http://llvm.org/">LLVM</a>, or anything else at this point</li>
+
+  <li>Basic arithmetic (+, -, *, /) on integers<br/>
+  <code>(- n 1)</code></li>
+
+  <li>Equality comparisons<br/>
+  <code>(= n 0)</code></li>
+
+  <li><code>if</code> statements<br/>
+  <code>(if (= n 0) a b)</code></li>
+
+  <li>Call static .NET methods (no <code>new</code> operator and no instance methods)<br/>
+  <code>(Console.WriteLine "What is your name?")</code></li>
+
+  <li>Define and call our own functions<br/>
+  <code>(define (fact n) (if (= n 0) 1 (* n (fact (- n 1)))))</code></li>
+</ul>
+<p id="p5">What we'll do is:</p>
+<ol>
+  <li>Preprocess built-in forms such as arithmetic, <code>define</code>, <code>if</code> and <code>lambda</code> into specific nodes in the expression tree</li>
+
+  <li>Construct an instance of <code>System.Reflection.Emit.ILGenerator</code>. We could write an EXE or DLL file, but for experimentation, it's handy to target a <code>DynamicMethod</code></li>
+
+  <li>Emit IL opcodes that implement the expression tree</li>
+</ol>
+<p id="p6">First, a couple of pattern matching functions to recognise the built-in forms. Strictly speaking, we could write a code generator which recognises the built-in forms directly, but turning them into first-class expression tree nodes early on will hopefully make it easier to apply compiler optimisations, which I hope to add at some point.</p>
+<p class="alt" id="p7"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/CodeGenerator.fs">CodeGenerator.fs</a></p>
+
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Turn</span> <span class="n">a</span> <span class="nc">LispVal</span> <span class="n">into</span> <span class="n">a</span> <span class="k">function</span> <span class="ow">or</span> <span class="n">variable</span> <span class="n">name</span>
+<span class="k">let</span> <span class="n">extractAtom</span> <span class="o">=</span> <span class="k">function</span>
+    <span class="o">|</span> <span class="nc">Atom</span> <span class="n">a</span> <span class="o">-&gt;</span> <span class="n">a</span>
+    <span class="o">|</span> <span class="n">v</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"expected atom, got %A"</span> <span class="n">v</span><span class="o">)</span>
+
+<span class="o">//</span> <span class="nc">Note</span><span class="o">:</span> <span class="n">insertPrimitives</span> <span class="n">accepts</span> <span class="n">a</span> <span class="nc">LispVal</span> <span class="ow">and</span> <span class="n">returns</span> <span class="n">a</span> <span class="nn">LispVal</span><span class="p">.</span>
+<span class="err">//</span> <span class="nc">The</span> <span class="k">function</span> <span class="n">keyword</span> <span class="n">combines</span> <span class="k">function</span> <span class="n">declaration</span> <span class="k">with</span> <span class="n">pattern</span> <span class="n">matching</span><span class="o">.</span>
+<span class="k">let</span> <span class="k">rec</span> <span class="n">insertPrimitives</span> <span class="o">=</span> 
+    <span class="k">function</span>
+    <span class="o">//</span> <span class="nc">Convert</span> <span class="n">arithmetic</span> <span class="n">operators</span> <span class="n">into</span> <span class="nc">ListPrimitive</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"+"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Add</span><span class="o">,</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"-"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Subtract</span><span class="o">,</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"*"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Multiply</span><span class="o">,</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"/"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Divide</span><span class="o">,</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"="</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Equal</span><span class="o">,</span> <span class="n">args</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span><span class="o">)</span>
+
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"define"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">args</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">[</span> <span class="nc">Atom</span> <span class="n">name</span><span class="o">;</span> <span class="n">v</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+            <span class="o">//</span> <span class="nc">Convert</span> <span class="o">(</span><span class="n">define</span> <span class="n">variableName</span> <span class="n">value</span><span class="o">)</span> <span class="n">into</span> <span class="nc">VariableDef</span>
+            <span class="nc">VariableDef</span> <span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">insertPrimitives</span> <span class="n">v</span><span class="o">)</span>
+
+        <span class="o">|</span> <span class="o">[</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="n">name</span> <span class="o">::</span> <span class="n">names</span><span class="o">);</span> <span class="n">body</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+            <span class="o">//</span> <span class="nc">Convert</span> <span class="o">(</span><span class="n">define</span> <span class="n">functionName</span> <span class="o">(</span><span class="n">x</span> <span class="n">y</span> <span class="n">z</span><span class="o">)</span> <span class="n">value</span><span class="o">)</span> <span class="n">into</span> <span class="n">a</span> <span class="nc">VariableDef</span> <span class="n">wrapping</span> <span class="n">a</span> <span class="nc">LambdaDef</span>
+            <span class="o">//</span> <span class="nc">This</span> <span class="n">represents</span> <span class="n">a</span> <span class="n">named</span> <span class="n">static</span> <span class="o">.</span><span class="nc">NET</span> <span class="k">method</span>
+            <span class="nc">VariableDef</span> <span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="nc">LambdaDef</span> <span class="o">(</span><span class="n">names</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">extractAtom</span><span class="o">,</span> <span class="n">insertPrimitives</span> <span class="n">body</span><span class="o">))</span>
+
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+            <span class="o">//</span> <span class="nc">Note</span><span class="o">:</span> <span class="s2">"raise &lt;| Compiler message"</span> <span class="n">is</span> <span class="n">equivalent</span> <span class="k">to</span> <span class="nc">C</span><span class="o">#</span> <span class="s2">"throw new CompilerException(message)"</span>
+            <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span> <span class="s2">"expected define name value"</span>
+
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"if"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">args</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">[</span> <span class="n">testValue</span><span class="o">;</span> <span class="n">thenValue</span><span class="o">;</span> <span class="n">elseValue</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+            <span class="o">//</span> <span class="nc">Convert</span> <span class="o">(</span><span class="k">if</span> <span class="n">test</span> <span class="k">then</span> <span class="k">else</span><span class="o">)</span> <span class="n">into</span> <span class="nc">IfPrimitive</span><span class="o">)</span>
+            <span class="nc">IfPrimitive</span> <span class="o">(</span><span class="n">insertPrimitives</span> <span class="n">testValue</span><span class="o">,</span> <span class="n">insertPrimitives</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">insertPrimitives</span> <span class="n">elseValue</span><span class="o">)</span>
+
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+            <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span> <span class="s2">"expected three items for if"</span>
+
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="s2">"lambda"</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">args</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="o">[</span> <span class="nc">List</span> <span class="n">names</span><span class="o">;</span> <span class="n">body</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+            <span class="o">//</span> <span class="nc">Convert</span> <span class="o">(</span><span class="n">lambda</span> <span class="o">(</span><span class="n">x</span> <span class="n">y</span> <span class="n">z</span><span class="o">)</span> <span class="n">value</span><span class="o">)</span> <span class="n">into</span> <span class="nc">LambdaDef</span><span class="o">,</span> <span class="n">without</span> <span class="n">a</span> <span class="nc">VariableDef</span>
+            <span class="nc">LambdaDef</span> <span class="o">(</span><span class="n">names</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">extractAtom</span><span class="o">,</span> <span class="n">insertPrimitives</span> <span class="n">body</span><span class="o">)</span>
+
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> 
+            <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span> <span class="s2">"expected lambda names body"</span>
+
+    <span class="o">|</span> <span class="nc">List</span> <span class="n">l</span> <span class="o">-&gt;</span> 
+        <span class="o">//</span> <span class="nc">Apply</span> <span class="n">insertPrimitives</span> <span class="n">recursively</span> <span class="n">on</span> <span class="n">any</span> <span class="k">function</span> <span class="n">invokations</span>
+        <span class="n">l</span> <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">insertPrimitives</span> <span class="o">|&gt;</span> <span class="nc">List</span>
+
+    <span class="o">|</span> <span class="n">v</span> <span class="o">-&gt;</span> <span class="n">v</span>
+</pre></div>
+
+
+
+<p id="p8">The <code>insertPrimitives</code> function turns our parsed expression tree into this:</p>
+
+<div class="pygments_murphy"><pre><span class="o">[</span><span class="nc">VariableDef</span>
+   <span class="o">(</span><span class="s2">"fact"</span><span class="o">,</span>
+    <span class="nc">LambdaDef</span>
+      <span class="o">([</span><span class="s2">"n"</span><span class="o">],</span>
+       <span class="nc">IfPrimitive</span>
+         <span class="o">(</span><span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Equal</span><span class="o">,[</span><span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">0</span><span class="o">]),</span><span class="nc">Number</span> <span class="mi">1</span><span class="o">,</span>
+          <span class="nc">ListPrimitive</span>
+            <span class="o">(</span><span class="nc">Multiply</span><span class="o">,</span>
+             <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span>
+              <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"fact"</span><span class="o">;</span> <span class="nc">ListPrimitive</span> <span class="o">(</span><span class="nc">Subtract</span><span class="o">,[</span><span class="nc">Atom</span> <span class="s2">"n"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">1</span><span class="o">])]]))));</span>
+ <span class="nc">List</span>
+   <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"6! = {0}"</span><span class="o">;</span> <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"fact"</span><span class="o">;</span> <span class="nc">Number</span> <span class="mi">6</span><span class="o">]];</span>
+ <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"What is your name?"</span><span class="o">];</span>
+ <span class="nc">List</span>
+   <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.WriteLine"</span><span class="o">;</span> <span class="nc">String</span> <span class="s2">"Hello, {0}"</span><span class="o">;</span>
+    <span class="nc">List</span> <span class="o">[</span><span class="nc">Atom</span> <span class="s2">"Console.ReadLine"</span><span class="o">]]]</span>
+</pre></div>
+
+
+
+<p id="p9">We're going to write an F# function that emits IL for one line in our program, and looks like this:</p>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">compile</span>
+    <span class="o">(</span><span class="n">generator</span> <span class="o">:</span> <span class="nc">ILGenerator</span><span class="o">)</span>
+    <span class="o">(</span><span class="n">defineMethod</span> <span class="o">:</span> <span class="kt">string</span> <span class="o">-&gt;</span> <span class="nc">Type</span> <span class="o">-&gt;</span> <span class="nc">Type</span> <span class="kt">list</span> <span class="o">-&gt;</span> <span class="o">#</span><span class="nc">MethodInfo</span> <span class="o">*</span> <span class="nc">ILGenerator</span><span class="o">)</span>
+    <span class="o">(</span><span class="n">env</span> <span class="o">:</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;)</span>
+    <span class="o">(</span><span class="n">value</span> <span class="o">:</span> <span class="nc">LispVal</span><span class="o">)</span> 
+    <span class="o">:</span> <span class="o">(</span><span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;)</span>
+</pre></div>
+
+
+
+<p id="p10">What this function signature tells us is:</p>
+<ul>
+  <li>We have a recursive function called <code>compile</code> (by default, F# functions aren't allowed to call themselves, hence the <code>rec</code> keyword)</li>
+
+  <li>It takes the following parameters:
+
+    <ol>
+      <li>An <code>ILGenerator</code>, i.e. the target of the IL we're going to generate</li>
+
+      <li>A function that accepts a <code>string</code>, a <code>Type</code>, a <code>list</code> of <code>Type</code>, and returns a tuple containing a <code>MethodInfo</code> (or a type derived from <code>MethodInfo</code>, hence the #) and another <code>ILGenerator</code>. This will be the callback that <code>compile</code> will call to create a new static method for <code>lambda</code>: the <code>string</code> is a function name, the <code>Type</code> is a return type, and the <code>Type list</code> is a list of parameter types.</li>
+
+      <li>A <code>Map</code> of <code>string</code> to <code>LispVal</code>, i.e. the variables and functions defined by prior statements in the program</li>
+
+      <li>A <code>LispVal</code> representing the statement to generate code for</li>
+    </ol>
+  </li>
+
+  <li>It returns <code>Map&lt;string, LispVal&gt;</code>, i.e. a copy of <code>env</code>, possibly with some new variables or functions added</li>
+</ul>
+<p id="p11">I'll cover the details of the <code>compile</code> function itself in the next post. In this one I'd like to explain a couple of helper functions:</p>
+<ul>
+  <li><code>typeOf</code>, which returns the .NET <code>Type</code> denoted by a <code>LispVal</code></li>
+
+  <li><code>lambdaIdent</code>, which retrieves a <code>LambdaDef</code></li>
+</ul>
+<p id="p12">We're using <code>LambdaDef</code> nodes not only to define our own functions (like <code>fact</code> in our example above, which calculates factorials), but also any .NET methods we call. <code>typeOf</code> and <code>lambdaIdent</code> call each other, so we have to define them together with F#'s <code>and</code> keyword in between them:</p>
+<ul>
+  <li><code>typeOf</code> needs to call <code>lambdaIdent</code> in order to determine the type returned by a function invocation</li>
+
+  <li><code>lambdaIdent</code> needs to call <code>typeOf</code> when it looks at the types of function arguments when deciding which overload of a .NET method to call</li>
+</ul>
+
+<div class="pygments_murphy"><pre><span class="k">let</span> <span class="k">rec</span> <span class="n">typeOf</span> <span class="o">(</span><span class="n">env</span> <span class="o">:</span> <span class="nc">Map</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">,</span> <span class="nc">LispVal</span><span class="o">&gt;)</span> <span class="o">=</span> <span class="k">function</span>
+    <span class="o">|</span> <span class="nc">ArgRef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">Atom</span> <span class="n">a</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">ident</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">Bool</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="o">(_,</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">elseValue</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">thenValue</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="n">t</span> <span class="k">when</span> <span class="n">t</span> <span class="o">=</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">elseValue</span> <span class="o">-&gt;</span> <span class="n">t</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"expected 'then' and 'else' branches to have same type"</span><span class="o">)</span>
+
+    <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="o">(_,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">body</span>
+    <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">(</span><span class="n">methodBuilder</span><span class="o">,</span> <span class="o">_,</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="n">methodBuilder</span><span class="o">.</span><span class="nc">ReturnType</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="n">a</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">lambdaIdent</span> <span class="n">args</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="n">fn</span> <span class="o">::</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"can't invoke %A"</span> <span class="n">fn</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"can't compile empty list"</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">Number</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">String</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">VariableDef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span><span class="o">&lt;</span><span class="nc">Void</span><span class="o">&gt;</span>
+    <span class="o">|</span> <span class="nc">VariableRef</span> <span class="n">local</span> <span class="o">-&gt;</span> <span class="n">local</span><span class="o">.</span><span class="nc">LocalType</span>  
+</pre></div>
+
+
+
+<p id="p13"><code>lambdaIdent</code> is moderately complicated: it needs to take the name of a function and a list of arguments and determine the correct .NET overload to call. (Even though I'm trying to keep this compiler simple, we need overload resolution in order to call <code>Console.WriteLine</code> -- we can't write hello world without it.)</p>
+<p id="p14">First, have we ourselves defined a function with the right name?</p>
+
+<div class="pygments_murphy"><pre><span class="ow">and</span> <span class="n">lambdaIdent</span> <span class="n">args</span> <span class="n">env</span> <span class="o">(</span><span class="n">a</span> <span class="o">:</span> <span class="kt">string</span><span class="o">)</span> <span class="o">=</span>
+    <span class="k">let</span> <span class="n">envMatches</span> <span class="o">=</span> 
+        <span class="n">maybe</span> <span class="o">{</span>
+            <span class="k">let</span><span class="o">!</span> <span class="n">v</span> <span class="o">=</span> <span class="nn">Map</span><span class="p">.</span><span class="n">tryFind</span> <span class="n">a</span> <span class="n">env</span>
+            <span class="k">let</span><span class="o">!</span> <span class="n">r</span> <span class="o">=</span>
+                <span class="k">match</span> <span class="n">v</span> <span class="k">with</span>
+                <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nc">Some</span> <span class="n">v</span>
+                <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+            <span class="n">return</span> <span class="n">r</span>
+        <span class="o">}</span> <span class="o">|&gt;</span> <span class="nn">Option</span><span class="p">.</span><span class="n">to_list</span>
+</pre></div>
+
+
+
+<p id="p15">Note: the <code>maybe</code> keyword isn't built into F#; we're using the F# equivalent of Haskell's Maybe monad, which <a href="http://en.wikibooks.org/wiki/F_Sharp_Programming/Computation_Expressions">a few</a> <a href="http://tomasp.net/articles/fsharp-iv-lang.aspx">other</a> <a href="http://codebetter.com/blogs/matthew.podwysocki/archive/2008/10/13/functional-c-linq-as-a-monad.aspx">people</a> have written about. Its purpose is to execute statements until one of them returns <code>None</code>; the result of the <code>maybe</code> block is determined by the <code>return r</code> at the bottom.</p>
+<p id="p16">At this point, <code>envMatches</code> is a list of one or no <code>LambdaRef</code> nodes, taken from our environment. Next: attempting to parse the method name as <code>Namespace.Class.Method</code>. Again, note the use of <code>maybe</code> to simplify the code that deals with <code>Option</code> variables:</p>
+
+<div class="pygments_murphy"><pre>    <span class="k">let</span> <span class="n">clrTypeAndMethodName</span> <span class="o">=</span> 
+        <span class="n">maybe</span> <span class="o">{</span>
+            <span class="k">let</span><span class="o">!</span> <span class="o">(</span><span class="n">typeName</span><span class="o">,</span> <span class="n">methodName</span><span class="o">)</span> <span class="o">=</span> 
+                <span class="k">match</span> <span class="n">a</span><span class="o">.</span><span class="nc">LastIndexOf</span><span class="o">(</span><span class="sc">'.'</span><span class="o">)</span> <span class="k">with</span>
+                <span class="o">|</span> <span class="o">-</span><span class="mi">1</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+                <span class="o">|</span> <span class="n">n</span> <span class="o">-&gt;</span> <span class="nc">Some</span> <span class="o">(</span><span class="n">a</span><span class="o">.</span><span class="nc">Substring</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="n">n</span><span class="o">),</span> <span class="n">a</span><span class="o">.</span><span class="nc">Substring</span><span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
+
+            <span class="k">let</span><span class="o">!</span> <span class="n">clrType</span> <span class="o">=</span>
+                <span class="n">referencedAssemblies</span>
+                <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">assembly</span> <span class="o">-&gt;</span> 
+                    <span class="n">usingNamespaces</span> 
+                    <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="k">fun</span> <span class="n">usingNamespace</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="n">assembly</span><span class="o">,</span> <span class="n">usingNamespace</span><span class="o">)))</span>
+                <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">concat</span>
+                <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">tryPick</span> <span class="o">(</span><span class="k">fun</span> <span class="o">(</span><span class="n">assembly</span><span class="o">,</span> <span class="n">usingNamespace</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">option_of_nullable</span> <span class="o">&lt;|</span> <span class="n">assembly</span><span class="o">.</span><span class="nc">GetType</span><span class="o">(</span><span class="n">usingNamespace</span> <span class="o">+</span> <span class="s2">"."</span> <span class="o">+</span> <span class="n">typeName</span><span class="o">))</span>
+
+            <span class="n">return</span> <span class="o">(</span><span class="n">clrType</span><span class="o">,</span> <span class="n">methodName</span><span class="o">)</span>
+        <span class="o">}</span> 
+</pre></div>
+
+
+
+<p id="p17"><code>referencedAssemblies</code> and <code>usingNamespaces</code> are hard-coded equivalents to C#'s assembly references and <code>using</code> statements. Next: a list of all the .NET methods with the right name, albeit maybe without the right parameter list:</p>
+
+<div class="pygments_murphy"><pre>    <span class="k">let</span> <span class="n">clrMatches</span> <span class="o">=</span>
+        <span class="k">match</span> <span class="n">clrTypeAndMethodName</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nc">Some</span> <span class="o">(</span><span class="n">clrType</span><span class="o">,</span> <span class="n">methodName</span><span class="o">)</span> <span class="o">-&gt;</span> 
+            <span class="n">clrType</span><span class="o">.</span><span class="nc">GetMethods</span><span class="o">(</span><span class="nn">BindingFlags</span><span class="p">.</span><span class="nc">Public</span> <span class="o">|||</span> <span class="nn">BindingFlags</span><span class="p">.</span><span class="nc">Static</span><span class="o">)</span> 
+            <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">of_array</span>
+            <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">filter</span> <span class="o">(</span><span class="k">fun</span> <span class="n">m</span> <span class="o">-&gt;</span> <span class="n">m</span><span class="o">.</span><span class="nc">Name</span> <span class="o">=</span> <span class="n">methodName</span><span class="o">)</span>
+            <span class="o">|&gt;</span> <span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="n">makeLambdaRef</span>
+
+        <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> 
+            <span class="o">[</span> <span class="o">]</span>
+</pre></div>
+
+
+
+<p id="p18">A function that determines whether a function's parameter list of compatible with a set of arguments. The <code>isParamArray</code> parameter indicates whether the .NET method has a variable parameter list (such as C#: <code>void WriteLine(string format, params object[] args)</code>).</p>
+
+<div class="pygments_murphy"><pre>    <span class="k">let</span> <span class="n">argsMatchParameters</span> <span class="o">=</span> <span class="k">function</span>
+        <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">(_,</span> <span class="n">isParamArray</span><span class="o">,</span> <span class="n">parameterTypes</span><span class="o">)</span> <span class="o">-&gt;</span>
+            <span class="k">let</span> <span class="k">rec</span> <span class="n">argsMatchParameters'</span> <span class="n">argTypes</span> <span class="o">(</span><span class="n">parameterTypes</span> <span class="o">:</span> <span class="o">#</span><span class="nc">Type</span> <span class="kt">list</span><span class="o">)</span> <span class="o">=</span>
+                <span class="k">match</span> <span class="n">argTypes</span><span class="o">,</span> <span class="n">parameterTypes</span> <span class="k">with</span>
+                <span class="o">|</span> <span class="o">[</span> <span class="o">],</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span> <span class="nc">No</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">no</span> <span class="n">parameters</span> <span class="o">-&gt;</span> <span class="n">always</span> <span class="nc">OK</span>
+                    <span class="bp">true</span>
+
+                <span class="o">|</span> <span class="o">[</span> <span class="o">],</span> <span class="o">[</span> <span class="o">_</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span> <span class="nc">No</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">one</span> <span class="n">parameter</span> <span class="o">-&gt;</span> <span class="nc">OK</span> <span class="n">only</span> <span class="k">for</span> <span class="n">params</span> <span class="kt">array</span> <span class="n">methods</span>
+                    <span class="n">isParamArray</span>
+
+                <span class="o">|</span> <span class="o">[</span> <span class="o">],</span> <span class="o">_</span> <span class="o">-&gt;</span>
+                    <span class="o">//</span> <span class="nc">No</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">two</span> <span class="ow">or</span> <span class="n">more</span> <span class="n">parameters</span> <span class="o">-&gt;</span> <span class="n">never</span> <span class="nc">OK</span>
+                    <span class="bp">false</span>
+
+                <span class="o">|</span> <span class="n">argType</span> <span class="o">::</span> <span class="n">otherArgTypes</span><span class="o">,</span> <span class="o">[</span> <span class="n">parameterType</span> <span class="o">]</span> <span class="k">when</span> <span class="n">isParamArray</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span> <span class="nc">One</span> <span class="ow">or</span> <span class="n">more</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">one</span> <span class="n">parameter</span><span class="o">,</span> <span class="k">in</span> <span class="n">a</span> <span class="n">params</span> <span class="kt">array</span> <span class="k">method</span> <span class="o">-&gt;</span>
+                    <span class="o">//</span>  <span class="nc">OK</span> <span class="k">if</span> <span class="n">the</span> <span class="n">types</span> <span class="k">of</span> <span class="n">the</span> <span class="n">first</span> <span class="n">arg</span> <span class="ow">and</span> <span class="n">the</span> <span class="n">params</span> <span class="kt">array</span> <span class="n">are</span> <span class="n">compatible</span><span class="o">,</span>
+                    <span class="o">//</span>  <span class="ow">and</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">args</span> <span class="k">match</span> <span class="n">the</span> <span class="n">params</span> <span class="kt">array</span>
+                    <span class="n">parameterType</span><span class="o">.</span><span class="nc">GetElementType</span><span class="bp">()</span><span class="o">.</span><span class="nc">IsAssignableFrom</span><span class="o">(</span><span class="n">argType</span><span class="o">)</span> 
+                    <span class="o">&amp;&amp;</span> <span class="n">argsMatchParameters'</span> <span class="n">otherArgTypes</span> <span class="n">parameterTypes</span>
+
+                <span class="o">|</span> <span class="n">argType</span> <span class="o">::</span> <span class="n">otherArgTypes</span><span class="o">,</span> <span class="n">parameterType</span> <span class="o">::</span> <span class="n">otherParameterTypes</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span> <span class="nc">One</span> <span class="ow">or</span> <span class="n">more</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">one</span> <span class="ow">or</span> <span class="n">more</span> <span class="n">parameters</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span>  <span class="nc">OK</span> <span class="k">if</span> <span class="n">the</span> <span class="n">types</span> <span class="k">of</span> <span class="n">the</span> <span class="n">first</span> <span class="n">arg</span> <span class="ow">and</span> <span class="n">parameter</span> <span class="n">are</span> <span class="n">compatible</span><span class="o">,</span> 
+                    <span class="o">//</span>  <span class="ow">and</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">args</span> <span class="k">match</span> <span class="n">the</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">the</span> <span class="n">parameters</span>
+                    <span class="n">parameterType</span><span class="o">.</span><span class="nc">IsAssignableFrom</span><span class="o">(</span><span class="n">argType</span><span class="o">)</span> 
+                    <span class="o">&amp;&amp;</span> <span class="n">argsMatchParameters'</span> <span class="n">otherArgTypes</span> <span class="n">otherParameterTypes</span>
+
+                <span class="o">|</span> <span class="o">_</span> <span class="o">::</span> <span class="o">_,</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> 
+                    <span class="o">//</span> <span class="nc">One</span> <span class="ow">or</span> <span class="n">more</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">no</span> <span class="n">parameters</span> <span class="o">-&gt;</span> <span class="n">never</span> <span class="nc">OK</span>
+                    <span class="bp">false</span>
+
+            <span class="n">argsMatchParameters'</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">map</span> <span class="o">(</span><span class="n">typeOf</span> <span class="n">env</span><span class="o">)</span> <span class="n">args</span><span class="o">)</span> <span class="n">parameterTypes</span>
+
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">false</span>
+</pre></div>
+
+
+
+<p id="p19">Finally, a combined list of all candidates (both from the environment and from .NET), the method overloads whose parameters are compatible with our arguments, and the chosen overload itself. When given more than one compatible overload we pick the first one we've given. (The ECMA C# spec defines detailed rules for picking the most appropriate method overload, but we've ignoring those in our language.)</p>
+
+<div class="pygments_murphy"><pre>    <span class="k">let</span> <span class="n">candidates</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">append</span> <span class="n">envMatches</span> <span class="n">clrMatches</span>
+    <span class="k">match</span> <span class="n">candidates</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"no method called %s"</span> <span class="n">a</span><span class="o">)</span>
+    <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+
+    <span class="k">let</span> <span class="n">allMatches</span> <span class="o">=</span> <span class="nn">List</span><span class="p">.</span><span class="n">filter</span> <span class="n">argsMatchParameters</span> <span class="n">candidates</span>
+    <span class="k">match</span> <span class="n">allMatches</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&lt;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"no overload of %s is compatible with %A"</span> <span class="n">a</span> <span class="n">args</span><span class="o">)</span>
+    <span class="o">|</span> <span class="n">firstMatch</span> <span class="o">::</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">firstMatch</span>
+</pre></div>
+
+
+
+<p id="p20">We're now able to take a method name (as a <code>string</code>) and a list of arguments (as <code>LispVal</code> nodes), and decide what to call, whether it's one of our own functions or a method in a .NET library. We've done a large chunk of the work ahead of the next post, in which we'll finally get round to generating some useful IL.</p>
+
+]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Lisp compiler in F#: Parsing with fslex and fsyacc]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html" />
+    <id>http://www.partario.com/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html</id>
+    <updated>2009-05-31T17:12:56Z</updated>
+    <published>2009-05-31T17:12:56Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Lisp compiler in F#: Parsing with fslex and fsyacc]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-parsing-with-fslex-and-fsyacc.html"><![CDATA[
+<p id="p1">This is part 2 of a series of posts on my Lisp compiler written in F#. Previous entry: <a href="/blog/2009/05/lisp-compiler-in-f-introduction.html">Introduction</a> | <a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">In this post I'll talk about the <em>fslex</em> and <em>fsyacc</em> tools, which, as their names suggest, are similar to the widely used <a href="http://en.wikipedia.org/wiki/Lex_programming_tool"><em>lex</em></a> and <a href="http://en.wikipedia.org/wiki/Yacc"><em>yacc</em></a> tools, which generate lexical scanners and parsers respectively.</p>
+<p id="p3">These tools generate two F# modules that work together:</p>
+<ul>
+  <li><em>fslex</em> generates code that splits a string into tokens, according to a set of rules similar to regular expressions</li>
+
+  <li><em>fsyacc</em> generates code that recognises sequences of tokens, and does something with them, such as building an expression tree</li>
+</ul>
+<p id="p4"><em>fslex</em> and <em>fsyacc</em> are both standalone executables that are installed in the bin subdirectory of an F# distribution. Although can invoke them by hand, their command line parameters and error handling are fairly basic. Luckily F# also ships with a pair of MSBuild tasks that you can put in your .fsproj file.</p>
+<ol>
+  <li>Open your .fsproj file in a text editor (or, in Visual Studio, unload the project, then click 'Edit ProjectName.fsproj' on the unloaded project's right click menu)</li>
+
+  <li>
+    <p id="p5">Towards the bottom you should see a line as follows:</p>
+
+    <p id="p6"><code>&lt;Import Project="$(MSBuildExtensionsPath)\FSharp\1.0\Microsoft.FSharp.Targets" /&gt;</code></p>
+
+    <p id="p7">Under this line, paste the following:</p>
+
+    <p id="p8"><code>&lt;Import Project="$(MSBuildExtensionsPath)\FSharp\1.0\FSharp.PowerPack.Targets" /&gt;</code></p>
+  </li>
+
+  <li>If you have the F# May 2009 CTP (version 1.6.9.16) or newer, <strong>remove the Microsoft.FSharp.Targets line</strong>. If you have the September 2008 CTP (version 1.6.9.2) or older, <strong>leave the Microsoft.FSharp.Targets line alone</strong>. (The May version of FSharp.PowerPack.Targets has its own import of Microsoft.FSharp.Targets, so leaving the import in the .fsproj file causes an MSBuild error.)</li>
+
+  <li>
+    <p id="p9">Slightly higher up in the .fsproj file, you'll see an <code>&lt;ItemGroup&gt;</code> element that contains your source files. Add the following lines; put them at the top of the list so that <em>fslex</em> and <em>fsyacc</em> get run before any of the compilation steps:</p>
+
+    <p id="p10"><code>&lt;FsYacc Include="YourParser.fsy" /&gt;</code><br/>
+    <code>&lt;FsLex Include="YourScanner.fsl" /&gt;</code></p>
+  </li>
+
+  <li>Save and close the .fsproj file in the text editor, then reload it in Visual Studio to ensure it still loads OK. (You did keep the original version in source control, right?) The .fsy and .fsl files will be missing at this point, but I'm going to discuss them in a moment.</li>
+
+  <li><strong>Extra step for the May CTP:</strong> The DLL that implements the <code>&lt;FsLex&gt;</code> and <code>&lt;FsYacc&gt;</code> tasks is installed to the wrong directory. You'll need to <a href="http://cs.hubfs.net/forums/thread/10484.aspx">follow this set of instructions and copy the FSharp.PowerPack.Build.Tasks.dll file to the right place</a>.</li>
+</ol>
+<p id="p11">Once you've successfully run <em>fslex</em> and <em>fsyacc</em> and generated F# source for the first time, you'll need to include these F# source files in your project. Because the file generated by <em>fslex</em> relies on <em>fsyacc</em>'s token definitions, you'll need to include the generated <em>fsyacc</em> file first -- remember that build order is significant in F#, unlike in C#. Feel free to check this generated source into source control, but remember to check it out before making changes to the .fsl and .fsy sources; these tools thrown an access denied exception if the generated source file is read only.</p>
+<p id="p12">The .fsy and .fsl files should look familiar if you've used <em>lex</em> and <em>yacc</em> before. Here are the rules I'm using to parse Lisp s-expressions:</p>
+<p class="alt" id="p13"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSYacc.fsy">FSYacc.fsy</a> -- generates FSYacc.fsi and FSYacc.fs</p>
+
+<div class="pygments_murphy"><pre>%{
+open Tim.Lisp.Core
+%}
+
+%start parse
+%token &lt;string&gt; Identifier
+%token &lt;string&gt; Text
+%token &lt;int&gt; Digits
+%token Apostrophe LeftParen RightParen Eof
+%type &lt;Tim.Lisp.Core.LispVal list&gt; parse
+
+%%
+
+Expr: Identifier { Atom $1 }
+    | Text { String $1 }
+    | Digits { Number $1 }
+    | LeftParen ExprList RightParen { $2 |&gt; List.rev |&gt; List }
+    | Apostrophe Expr { List [ Atom "quote"; $2 ] }
+
+ExprList: Expr { [ $1 ] }
+        | ExprList Expr { $2 :: $1  }
+
+parse: ExprList Eof { List.rev $1 }
+</pre></div>
+
+
+
+<p id="p14">Note that the <em>fsyacc</em> source defines the list of tokens that it expects the <em>fslex</em> source to emit. Because this is F#, the list of <code>%code</code> statements above results in the generation of one of our old friends, the discriminated union:</p>
+<p class="alt" id="p15"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSYacc.fsi">FSYacc.fsi</a> -- generated from FSYacc.fsy</p>
+
+<div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">Signature</span> <span class="n">file</span> <span class="k">for</span> <span class="n">parser</span> <span class="n">generated</span> <span class="n">by</span> <span class="n">fsyacc</span>
+<span class="o">#</span><span class="n">light</span>
+<span class="k">type</span> <span class="n">token</span> <span class="o">=</span> 
+  <span class="o">|</span> <span class="nc">Apostrophe</span>
+  <span class="o">|</span> <span class="nc">LeftParen</span>
+  <span class="o">|</span> <span class="nc">RightParen</span>
+  <span class="o">|</span> <span class="nc">Eof</span>
+  <span class="o">|</span> <span class="nc">Digits</span> <span class="k">of</span> <span class="o">(</span><span class="kt">int</span><span class="o">)</span>
+  <span class="o">|</span> <span class="nc">Text</span> <span class="k">of</span> <span class="o">(</span><span class="kt">string</span><span class="o">)</span>
+  <span class="o">|</span> <span class="nc">Identifier</span> <span class="k">of</span> <span class="o">(</span><span class="kt">string</span><span class="o">)</span>
+<span class="o">//</span> <span class="n">snip</span> <span class="n">rest</span> <span class="k">of</span> <span class="n">generated</span> <span class="n">code</span>
+</pre></div>
+
+
+
+<p id="p16">The rest of the file consists of <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a>-like rules; here I'm recognising the key parts of s-expression syntax and emitting an expression tree in the form of my own <code>LispVal</code> data structure, which is another discriminated union.</p>
+<p id="p17">The .fsl file takes text, applies regular expressions to it, and returns a stream of tokens:</p>
+<p class="alt" id="p18"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/FSLex.fsl">FSLex.fsl</a> -- generates FSLex.fs</p>
+
+<div class="pygments_murphy"><pre>{
+open System
+open System.Text
+open Microsoft.FSharp.Text.Lexing
+open FSYacc
+}
+
+let digit = ['0'-'9']
+let alpha = ['a'-'z' 'A'-'Z']
+let whitespace = [' ' '\t']
+let newline = ('\n' | '\r' '\n')
+let identifier = [^'"' '0'-'9' '(' ')' ' ' '\t' '\n' '\r']
+ 
+rule tokenize = parse
+| whitespace        { tokenize lexbuf }
+| newline           { lexbuf.EndPos &lt;- lexbuf.EndPos.NextLine; tokenize lexbuf }
+| ['-']?digit+      { Digits &lt;| Int32.Parse(Encoding.UTF8.GetString(lexbuf.Lexeme)) }
+| '('               { LeftParen }
+| ')'               { RightParen }
+| '\''              { Apostrophe }
+| '"' [^'"']* '"'   { let s = Encoding.UTF8.GetString(lexbuf.Lexeme) in Text &lt;| s.Substring(1, s.Length - 2) }
+| eof               { Eof }
+| identifier+       { Identifier &lt;| Encoding.UTF8.GetString(lexbuf.Lexeme) }
+</pre></div>
+
+
+
+<p id="p19"><em>fslex</em> regular expressions aren't entirely standard:</p>
+<ul>
+  <li>White space is ignored</li>
+
+  <li>Literal characters are enclosed in single quotes</li>
+
+  <li>You're allowed to use <code>let</code> to define aliases (see <code>digit</code>, <code>alpha</code>, <code>whitespace</code>, <code>newline</code> and <code>identifier</code> above)</li>
+</ul>
+<p id="p20">Each <code>rule</code> block defines a function in the generated F# source that accepts an <code>Microsoft.FSharp.Text.Lexing.LexBuffer&lt;byte&gt;</code> and returns the token type defined by the generated <em>fsyacc</em> source. Although <code>LexBuffer</code> is a generic type, <em>fslex</em> prior to May only generates ASCII parsers, hence the calls to <code>Encoding.UTF8.GetString</code> above. The May CTP adds a --unicode command line parameter, which appears to enable the use of <code>LexBuffer&lt;char&gt;</code>, but I haven't found how to enable this option via the MSBuild task.</p>
+<p id="p21">Given the generated source code, it's relatively straightforward to write a facade around it. Note that you'll need to add a reference to Microsoft.FSharp.PowerPack.dll in order to use the types in the <code>Microsoft.FSharp.Text.Lexing</code> namespace.</p>
+<p class="alt" id="p22"><a href="http://github.com/timrobinson/fsharp-lisp/blob/b13a8c59066040b7c007b0a4bea28a7fc2163fc1/Core/Parser.fs">Parser.fs</a></p>
+
+<div class="pygments_murphy"><pre><span class="o">#</span><span class="n">light</span>
+<span class="k">open</span> <span class="nn">System</span><span class="p">.</span><span class="nc">Text</span>
+<span class="k">open</span> <span class="nn">Microsoft</span><span class="p">.</span><span class="nn">FSharp</span><span class="p">.</span><span class="nn">Text</span><span class="p">.</span><span class="nc">Lexing</span>
+
+<span class="k">module</span> <span class="nc">Parser</span> <span class="o">=</span>
+    <span class="o">//</span> <span class="nc">Accepts</span> <span class="n">a</span> <span class="kt">string</span> <span class="ow">and</span> <span class="n">either</span> <span class="n">returns</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="n">objects</span> <span class="ow">or</span> <span class="n">throws</span> <span class="n">an</span> <span class="k">exception</span>
+    <span class="k">let</span> <span class="n">parseString</span> <span class="o">(</span><span class="n">s</span> <span class="o">:</span> <span class="kt">string</span><span class="o">)</span> <span class="o">=</span> <span class="nn">FSYacc</span><span class="p">.</span><span class="n">parse</span> <span class="nn">FSLex</span><span class="p">.</span><span class="n">tokenize</span> <span class="o">&lt;|</span> <span class="nc">LexBuffer</span><span class="o">&lt;_&gt;.</span><span class="nc">FromBytes</span><span class="o">(</span><span class="nn">Encoding</span><span class="p">.</span><span class="nn">UTF8</span><span class="p">.</span><span class="nc">GetBytes</span><span class="o">(</span><span class="n">s</span><span class="o">))</span>
+</pre></div>
+
+
+
+<p id="p23">In the next post, I'll take the <code>LispVal</code> objects returned by the <code>parseString</code> function and use them to generate actual IL.</p>
+]]></content>
+  </entry>
+  <entry>
+    <author>
+      <name></name>
+      <uri>http://www.partario.com/blog/</uri>
+    </author>
+    <title type="html"><![CDATA[Lisp compiler in F#: Introduction]]></title>
+    <link rel="alternate" type="text/html" href="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-introduction.html" />
+    <id>http://www.partario.com/blog/2009/05/lisp-compiler-in-f-introduction.html</id>
+    <updated>2009-05-30T22:34:24Z</updated>
+    <published>2009-05-30T22:34:24Z</published>
+    <category scheme="http://www.partario.com/blog/" term="Compiler" />
+    <summary type="html"><![CDATA[Lisp compiler in F#: Introduction]]></summary>
+    <content type="html" xml:base="http://www.partario.com/blog/2009/05/lisp-compiler-in-f-introduction.html"><![CDATA[
+<p id="p1"><a href="http://github.com/timrobinson/fsharp-lisp/tree/master">Browse the full source of the compiler on GitHub</a></p>
+<p id="p2">I started learning functional programming in F# and Haskell around 6 months ago, and one of the programs I've been writing in order to learn F# is a small Lisp compiler, with syntax similar to <a href="http://en.wikipedia.org/wiki/Scheme_(programming_language)">Scheme</a>:</p>
+
+<div class="pygments_murphy"><pre><span class="p">(</span><span class="k">define </span><span class="p">(</span><span class="nf">fact</span> <span class="nv">n</span><span class="p">)</span> <span class="p">(</span><span class="k">if </span><span class="p">(</span><span class="nb">= </span><span class="nv">n</span> <span class="mi">0</span><span class="p">)</span> <span class="mi">1</span> <span class="p">(</span><span class="nb">* </span><span class="nv">n</span> <span class="p">(</span><span class="nf">fact</span> <span class="p">(</span><span class="nb">- </span><span class="nv">n</span> <span class="mi">1</span><span class="p">)))))</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"6! = {0}"</span> <span class="p">(</span><span class="nf">fact</span> <span class="mi">6</span><span class="p">))</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"What is your name?"</span><span class="p">)</span>
+<span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">WriteLine</span> <span class="s">"Hello, {0}"</span> <span class="p">(</span><span class="nf">Console</span><span class="o">.</span><span class="nv">ReadLine</span><span class="p">))</span>
+</pre></div>
+
+
+
+<p id="p3">I'm planning on posting a series of articles explaining how the compiler demonstrates some useful F# features. By way of an introduction, I'd like to talk about two of my favourite features from functional languages: discriminated unions and pattern matching.</p>
+<p id="p4">At their simplest, discriminated unions are equivalent to .NET enums, since they allow a strongly-types variable to hold one of a fixed set of values:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent:</span>
+<span class="c"> * public enum ListOp { Add, Subtract, Multiply, Divide, Equal }</span>
+<span class="c"> *)</span>
+
+<span class="k">type</span> <span class="nc">ListOp</span> <span class="o">=</span> <span class="nc">Add</span>
+            <span class="o">|</span> <span class="nc">Subtract</span> 
+            <span class="o">|</span> <span class="nc">Multiply</span> 
+            <span class="o">|</span> <span class="nc">Divide</span> 
+            <span class="o">|</span> <span class="nc">Equal</span>
+</pre></div>
+
+
+
+<p id="p5">But each of these possible values can be tagged with a data structure, which means that discriminated unions are useful where an object-orientated language would need a hierarchy of classes:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent:</span>
+<span class="c"> * public abstract class LispVal { }</span>
+<span class="c"> *</span>
+<span class="c"> * public sealed class ArgRef : LispVal</span>
+<span class="c"> * {</span>
+<span class="c"> *     public ArgRef(int index)</span>
+<span class="c"> *     {</span>
+<span class="c"> *         Index = index;</span>
+<span class="c"> *     }</span>
+<span class="c"> *</span>
+<span class="c"> *     public int Index { get; private set; }</span>
+<span class="c"> * }</span>
+<span class="c"> *</span>
+<span class="c"> * public sealed class Atom : LispVal</span>
+<span class="c"> * {</span>
+<span class="c"> *     public Atom(string text)</span>
+<span class="c"> *     {</span>
+<span class="c"> *         Text = text;</span>
+<span class="c"> *     }</span>
+<span class="c"> *</span>
+<span class="c"> *     public string Text { get; private set; }</span>
+<span class="c"> * }</span>
+<span class="c"> *</span>
+<span class="c"> * etc., for the other cases</span>
+<span class="c"> *)</span>
+<span class="k">type</span> <span class="nc">LispVal</span> <span class="o">=</span> 
+             <span class="o">|</span> <span class="nc">ArgRef</span> <span class="k">of</span> <span class="kt">int</span>                                
+             <span class="o">|</span> <span class="nc">Atom</span> <span class="k">of</span> <span class="kt">string</span>
+             <span class="o">|</span> <span class="nc">Bool</span> <span class="k">of</span> <span class="kt">bool</span>
+             <span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="o">*</span> <span class="nc">LispVal</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="k">of</span> <span class="kt">string</span> <span class="kt">list</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="k">of</span> <span class="nc">MethodInfo</span> <span class="o">*</span> <span class="kt">bool</span> <span class="o">*</span> <span class="nc">Type</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">List</span> <span class="k">of</span> <span class="nc">LispVal</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="k">of</span> <span class="nc">ListOp</span> <span class="o">*</span> <span class="nc">LispVal</span> <span class="kt">list</span>
+             <span class="o">|</span> <span class="nc">Number</span> <span class="k">of</span> <span class="kt">int</span>
+             <span class="o">|</span> <span class="nc">QuotePrimitive</span> <span class="k">of</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">String</span> <span class="k">of</span> <span class="kt">string</span>
+             <span class="o">|</span> <span class="nc">VariableDef</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="nc">LispVal</span>
+             <span class="o">|</span> <span class="nc">VariableRef</span> <span class="k">of</span> <span class="nc">LocalBuilder</span>
+</pre></div>
+
+
+
+<p id="p6">When faced with the task of writing code that understands the C# class hierarchy above, I'd implement the <a href="http://en.wikipedia.org/wiki/Visitor_pattern">Visitor pattern</a>: I'd define an interface called <code>ILispValVisitor</code>, and every time I needed to process a <code>LispVal</code> somehow, I'd declare a nested class that implemented the right <code>ILispValVisitor</code> methods. Fairly straightforward, right? -- a boilerplate class implementation in every piece of code that needs to look inside a <code>LispVal</code>.</p>
+<p id="p7">Functional languages have a much more elegant alternative, in the form of pattern matching operators. There's no real equivalent to pattern matching in C#, although the concept could be similar to <code>if</code>, <code>switch</code> or the visitor pattern depending on the situation:</p>
+
+<div class="pygments_murphy"><pre><span class="c">(*</span>
+<span class="c"> * Rough C# equivalent: an implementation of the visitor pattern</span>
+<span class="c"> *)</span>
+<span class="k">let</span> <span class="k">rec</span> <span class="n">typeOf</span> <span class="o">(</span><span class="n">env</span> <span class="o">:</span> <span class="nc">Map</span><span class="o">)</span> <span class="o">=</span> <span class="k">function</span>
+    <span class="o">|</span> <span class="nc">ArgRef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">Atom</span> <span class="n">a</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">ident</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">Bool</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">IfPrimitive</span> <span class="o">(_,</span> <span class="n">thenValue</span><span class="o">,</span> <span class="n">elseValue</span><span class="o">)</span> <span class="o">-&gt;</span>
+        <span class="k">match</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">thenValue</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="n">t</span> <span class="k">when</span> <span class="n">t</span> <span class="o">=</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">elseValue</span> <span class="o">-&gt;</span> <span class="n">t</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"expected 'then' and 'else' branches to have same type"</span><span class="o">)</span>
+
+    <span class="o">|</span> <span class="nc">LambdaDef</span> <span class="o">(_,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">typeOf</span> <span class="n">env</span> <span class="n">body</span>
+    <span class="o">|</span> <span class="nc">LambdaRef</span> <span class="o">(</span><span class="n">methodBuilder</span><span class="o">,</span> <span class="o">_,</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="n">methodBuilder</span><span class="o">.</span><span class="nc">ReturnType</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="nc">Atom</span> <span class="n">a</span> <span class="o">::</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">a</span> <span class="o">|&gt;</span> <span class="n">lambdaIdent</span> <span class="n">args</span> <span class="n">env</span> <span class="o">|&gt;</span> <span class="n">typeOf</span> <span class="n">env</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">(</span><span class="n">fn</span> <span class="o">::</span> <span class="o">_)</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="n">sprintf</span> <span class="s2">"can't invoke %A"</span> <span class="n">fn</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">List</span> <span class="o">[</span> <span class="o">]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;|</span> <span class="nc">Compiler</span><span class="o">(</span><span class="s2">"can't compile empty list"</span><span class="o">)</span>
+    <span class="o">|</span> <span class="nc">ListPrimitive</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">Number</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">String</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">QuotePrimitive</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">VariableDef</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">typeof</span>
+    <span class="o">|</span> <span class="nc">VariableRef</span> <span class="n">local</span> <span class="o">-&gt;</span> <span class="n">local</span><span class="o">.</span><span class="nc">LocalType</span>
+</pre></div>
+
+
+
+<p id="p8">The Lisp compiler I wrote relies on a discriminated union, <code>LispVal</code> for storing expression trees, and pattern matching for most of its processing. I'll post more in-depth articles covering the source code in detail, including:</p>
+<ul>
+  <li>Parsing with fslex and fsyacc</li>
+
+  <li>Code generation using <code>System.Reflection.Emit</code></li>
+
+  <li>Calling the compiler from C#</li>
+</ul>
+]]></content>
+  </entry>
+</feed>
