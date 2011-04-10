@@ -85,17 +85,18 @@ href="/blog/feed/atom" />
   <p id="p1"><strong class="alt">Update:</strong> Thanks to the commenters on this blog and on Reddit, I've got <a href="http://www.partario.com/blog/2009/11/an-improved-spelling-corrector-in-haskell.html">a much improved and more readable Haskell port</a> of the spelling corrector.</p>
 <p id="p2">On Wednesday I attended the <a href="http://stackoverflow.carsonified.com/events/london/">StackOverflow DevDay</a> in London, which was a day of excellent talks by engaging speakers. Michael Sparks gave a talk on Python, where he built up <a href="http://www.norvig.com/spell-correct.html">Peter Norvig's spelling corrector</a> line by line as we watched. I was impressed by how easy it was to understand the source code, and the style struck me as being particularly functional. So, I was compelled to translate the Python source into Haskell.</p>
 <p id="p3">This post is also a Literate Haskell program, meaning that you should be able to copy the text from the page, paste it into a <code>.lhs</code> file, and compile it. Snippets starting with <code>&gt;</code> are Haskell; in between is Peter's original program, and my commentary on the differences.</p>
-<div class="pygments_murphy"><pre># Python code looks like this:
+<div class="pygments_murphy"><pre> # Python region looks like this:
 import re, collections
 
-&gt; -- Haskell code looks like this:
-&gt; module Tim.Spell.Correct where
+&gt; -- Haskell region looks like this:
+&gt; module Main where
 &gt;
 &gt; import Char
 &gt; import qualified Data.List as List
 &gt; import qualified Data.Map as Map
 &gt; import qualified Data.Set as Set
 &gt; import Data.Ord
+&gt; import IO
 &gt; import List
 </pre></div>
 
@@ -106,6 +107,7 @@ import re, collections
 <li><code>Data.Map</code> gives us the <code>Map</code> type</li>
 <li><code>Data.Set</code> gives us the <code>Set</code> type</li>
 <li><code>Data.Ord</code> gives us the <code>comparing</code> function</li>
+<li><code>IO</code> gives us <code>isEOF</code></li>
 <li><code>List</code> gives us <code>maximumBy</code></li>
 </ul>
 <div class="pygments_murphy"><pre>def words(text): return re.findall('[a-z]+', text.lower())
