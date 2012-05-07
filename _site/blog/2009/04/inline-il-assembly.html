@@ -202,12 +202,12 @@ href="/blog/feed/atom" />
     <span class="p">{</span>
         <span class="n">AssemblyDefinition</span> <span class="n">assembly</span> <span class="p">=</span> <span class="n">AssemblyFactory</span><span class="p">.</span><span class="n">GetAssembly</span><span class="p">(</span><span class="s">"Temp.exe"</span><span class="p">);</span>
         <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">MethodDefinition</span><span class="p">&gt;</span> <span class="n">methods</span> <span class="p">=</span>
-            <span class="n">from</span> <span class="n">module</span> <span class="k">in</span> <span class="n">assembly</span><span class="p">.</span><span class="n">Modules</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">ModuleDefinition</span><span class="p">&gt;()</span>
-            <span class="n">from</span> <span class="n">type</span> <span class="k">in</span> <span class="n">module</span><span class="p">.</span><span class="n">Types</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">TypeDefinition</span><span class="p">&gt;()</span>
-            <span class="n">from</span> <span class="n">method</span> <span class="k">in</span> <span class="n">type</span><span class="p">.</span><span class="n">Methods</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">MethodDefinition</span><span class="p">&gt;()</span>
-            <span class="n">select</span> <span class="n">method</span><span class="p">;</span>
+            <span class="k">from</span> <span class="n">module</span> <span class="k">in</span> <span class="n">assembly</span><span class="p">.</span><span class="n">Modules</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">ModuleDefinition</span><span class="p">&gt;()</span>
+            <span class="k">from</span> <span class="n">type</span> <span class="k">in</span> <span class="n">module</span><span class="p">.</span><span class="n">Types</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">TypeDefinition</span><span class="p">&gt;()</span>
+            <span class="k">from</span> <span class="n">method</span> <span class="k">in</span> <span class="n">type</span><span class="p">.</span><span class="n">Methods</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">MethodDefinition</span><span class="p">&gt;()</span>
+            <span class="k">select</span> <span class="n">method</span><span class="p">;</span>
 
-        <span class="k">foreach</span> <span class="p">(</span><span class="n">var</span> <span class="n">method</span> <span class="k">in</span> <span class="n">methods</span><span class="p">)</span>
+        <span class="k">foreach</span> <span class="p">(</span><span class="kt">var</span> <span class="n">method</span> <span class="k">in</span> <span class="n">methods</span><span class="p">)</span>
         <span class="p">{</span>
             <span class="k">while</span> <span class="p">(</span><span class="n">ReplaceInstructions</span><span class="p">(</span><span class="n">method</span><span class="p">))</span>
             <span class="p">{</span>
@@ -243,7 +243,7 @@ href="/blog/feed/atom" />
   <h3>About Tim</h3>
   <ul>
       <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
-      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/1tgr">@1tgr</a></li> 
   </ul>
   </div>
   <div id="blog_post_list">

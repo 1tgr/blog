@@ -165,13 +165,13 @@ import re, collections
 <li>List comprehension syntax is very similar, if you replace Python's <code>for</code> and <code>in</code> with Haskell's <code>|</code> and <code>&lt;-</code>. (Recurring theme: Haskell prefers symbols to keywords.)</li>
 <li><code>[ start .. end ]</code> is Haskell's built-in range syntax. It's lazy, and generates elements only on demand, which means it's fine to construct an infinite list like this: <code>[ 1 .. ]</code></li>
 <li>Python has neat string slicing syntax:</li>
-<li><code>[:i]</code> is replaced with <code>take i</code>, to take the first _i_ characters</li>
-<li><code>[i:]</code> is replaced with <code>drop i</code>, to take all but the first _i_ characters</li>
-<li>Subscripts can be replaced with the <code>!!</code> operators, which does the same thing, but with O(_N_) complexity. Remember Haskell's strings are lists of characters, not arrays (although see <code>Data.ByteString</code>).</li>
+<li><code>[:i]</code> is replaced with <code>take i</code>, to take the first <em>i</em> characters</li>
+<li><code>[i:]</code> is replaced with <code>drop i</code>, to take all but the first <em>i</em> characters</li>
+<li>Subscripts can be replaced with the <code>!!</code> operators, which does the same thing, but with O(<em>N</em>) complexity. Remember Haskell's strings are lists of characters, not arrays (although see <code>Data.ByteString</code>).</li>
 <li>Python's <code>if</code> keyword maps to different things depending on the context. Here it's used to ask 'is the string empty?', and we replace it with the <code>not</code> and <code>null</code> functions.</li>
 <li><code>++</code> and <code>:</code> stand in for Python's <code>+</code> operator, depending on whether we're concatenating two lists (<code>a ++ b</code>) or pushing a single element onto the start of a list (<code>head : tail</code>)</li>
 </ul>
-<p id="p10">I'm not totally convinced about the performance of the Haskell version, since <code>take</code> and <code>drop</code> are O(<em>N_) and not O(1). However, _N</em> is small here, being the length of a word. If it's a problem we could use <code>ByteString</code> instead for O(1) complexity at the price of having to copy strings.</p>
+<p id="p10">I'm not totally convinced about the performance of the Haskell version, since <code>take</code> and <code>drop</code> are O(<em>N</em>) and not O(1). However, <em>N</em> is small here, being the length of a word. If it's a problem we could use <code>ByteString</code> instead for O(1) complexity at the price of having to copy strings.</p>
 <div class="pygments_murphy"><pre>def known_edits2(word):
     return set(e2 for e1 in edits1(word) for e2 in edits1(e1) if e2 in NWORDS)
 
@@ -429,32 +429,41 @@ import re, collections
   <span class="post_prose">
     
   <p id="p1">I'd like to add tail call support to my <a href="http://www.partario.com/blog/2009/06/lisp-compiler-in-f-whats-next.html">Lisp compiler</a>. I can think of two approaches to tail recursion:</p>
-<ul><li>Use the .NET <code>tail.call</code> prefix<ul><li>Translate <code>call</code> followed by <code>ret</code> into <code>tail.call</code> followed by <code>ret</code></li>
+<ul>
+<li>Use the .NET <code>tail.call</code> prefix<ul>
+<li>Translate <code>call</code> followed by <code>ret</code> into <code>tail.call</code> followed by <code>ret</code></li>
 <li>It's easier to spot this pattern if we put IL in our own data structure before emitting it</li>
 <li>Our own data structure needs to represent all the IL we use, including labels (for branching) and local variables</li>
 <li>The label data structure needs a way to represent the target of a branch</li>
 <li><span class="alt">Note:</span> The <code>tail</code> prefix is a hint that the JIT compiler doesn't have to obey - <a href="http://blogs.msdn.com/clrcodegeneration/archive/2009/05/11/tail-call-improvements-in-net-framework-4.aspx">here's a good explanation of the limitations</a></li>
-</ul></li>
-<li>Translate functions that call themselves into loops<ul><li>Our abstract syntax tree doesn't have a way to represent a loop</li>
+</ul>
+</li>
+<li>Translate functions that call themselves into loops<ul>
+<li>Our abstract syntax tree doesn't have a way to represent a loop</li>
 <li>As above, it needs an AST capable of representing branches</li>
 <li>The F# compiler does this; it's not able to rely on the <code>tail</code> prefix either</li>
 <li>Can we apply this to functions that call each other recursively? At compile time we might not spot co-recursive functions: F# only allows co-recursive functions if they use the <code>let ... and</code> syntax to define both functions in the same source file.</li>
-</ul></li>
-</ul><p id="p2">The ability to represent loops, and control flow in general, seems to be important in your syntax tree. The <a href="http://llvm.org/">LLVM</a> approach to this is the <a href="http://en.wikipedia.org/wiki/Basic_block">basic block</a>:</p>
-<ul><li>One entry point: no branching into the middle of the block</li>
+</ul>
+</li>
+</ul>
+<p id="p2">The ability to represent loops, and control flow in general, seems to be important in your syntax tree. The <a href="http://llvm.org/">LLVM</a> approach to this is the <a href="http://en.wikipedia.org/wiki/Basic_block">basic block</a>:</p>
+<ul>
+<li>One entry point: no branching into the middle of the block</li>
 <li>One exit point: always contains one branch instruction, at the end</li>
 <li>Basic blocks can be connected to form a control flow graph: blocks are vertices, branch instructions are edges</li>
 <li>Control flow graph is: directed (A branches to B); cyclic (A is allowed to branch to A - this is a loop)</li>
-</ul><p id="p3">How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:</p>
+</ul>
+<p id="p3">How can we represent basic blocks in F#? The intuitive approach means defining a discriminated union:</p>
 <div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">An</span> <span class="n">instruction</span> <span class="n">can</span> <span class="n">be</span> <span class="n">a</span> <span class="n">regular</span> <span class="n">opcode</span><span class="o">,</span> 
 <span class="o">//</span>  <span class="ow">or</span> <span class="n">a</span> <span class="n">branch</span> <span class="k">to</span> <span class="n">another</span> <span class="n">basic</span> <span class="n">block</span>
 <span class="k">type</span> <span class="nc">Instruction</span> <span class="o">=</span> <span class="nc">CallInstruction</span> <span class="k">of</span> <span class="nc">MethodInfo</span> <span class="o">*</span> <span class="n">obj</span>
                  <span class="o">|</span> <span class="nc">Branch</span> <span class="k">of</span> <span class="nc">BasicBlock</span>
 
-<p id="p4"><span class="o">//</span> <span class="nc">A</span> <span class="n">basic</span> <span class="n">block</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">instructions</span>
+<span class="o">//</span> <span class="nc">A</span> <span class="n">basic</span> <span class="n">block</span> <span class="n">is</span> <span class="n">a</span> <span class="kt">list</span> <span class="k">of</span> <span class="n">instructions</span>
 <span class="ow">and</span> <span class="nc">BasicBlock</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="k">of</span> <span class="nc">Instruction</span> <span class="kt">list</span>
-</p></pre></div>
-<p id="p5">We have to construct a list of instructions before constructing a basic block. But how do we represent the following?</p>
+</pre></div>
+
+<p id="p4">We have to construct a list of instructions before constructing a basic block. But how do we represent the following?</p>
 <div class="pygments_murphy"><pre><span class="c1">// C# pseudocode</span>
 <span class="k">while</span> <span class="p">(</span><span class="k">true</span><span class="p">)</span>
     <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"hello"</span><span class="p">);</span>
@@ -465,13 +474,13 @@ import re, collections
     <span class="o">[</span>
         <span class="nc">Call</span> <span class="o">(</span><span class="n">writeLine</span><span class="o">,</span> <span class="s2">"hello"</span><span class="o">);</span>
 
-<pre><code>    &lt;span class="o"&gt;//&lt;/span&gt; &lt;span class="nc"&gt;How&lt;/span&gt; &lt;span class="n"&gt;can&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;branch&lt;/span&gt; &lt;span class="k"&gt;to&lt;/span&gt; &lt;span class="n"&gt;something&lt;/span&gt; &lt;span class="n"&gt;we&lt;/span&gt; &lt;span class="n"&gt;haven&amp;#39;t&lt;/span&gt; &lt;span class="n"&gt;constructed&lt;/span&gt; &lt;span class="n"&gt;yet&lt;/span&gt;&lt;span class="o"&gt;?&lt;/span&gt;
-    &lt;span class="nc"&gt;Branch&lt;/span&gt; &lt;span class="o"&gt;???&lt;/span&gt;
-&lt;span class="o"&gt;]&lt;/span&gt;
-</code></pre>
-<p id="p6"><span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="n">instructions</span>
-</p></pre></div>
-<p id="p7">The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:</p>
+        <span class="o">//</span> <span class="nc">How</span> <span class="n">can</span> <span class="n">we</span> <span class="n">branch</span> <span class="k">to</span> <span class="n">something</span> <span class="n">we</span> <span class="n">haven't</span> <span class="n">constructed</span> <span class="n">yet</span><span class="o">?</span>
+        <span class="nc">Branch</span> <span class="o">???</span>
+    <span class="o">]</span>
+<span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="nc">BasicBlock</span> <span class="n">instructions</span>
+</pre></div>
+
+<p id="p5">The answer is to separate identity of basic blocks from the instructions within them. We could assign names or ids to them. Or, since we're writing F# and not Haskell, we could drop immutability:</p>
 <div class="pygments_murphy"><pre><span class="o">//</span> <span class="nc">F</span><span class="o">#</span> <span class="n">abstract</span> <span class="n">syntax</span> <span class="n">tree</span> <span class="k">with</span> <span class="n">mutability</span> <span class="o">-</span> 
 <span class="o">//</span>  <span class="n">note</span> <span class="n">property</span> <span class="n">assignment</span> <span class="k">with</span> <span class="o">&lt;-</span>
 <span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">BasicBlock</span><span class="bp">()</span>
@@ -481,20 +490,25 @@ import re, collections
         <span class="nc">Branch</span> <span class="n">program</span>
     <span class="o">]</span>
 
-<p id="p8"><span class="n">program</span><span class="o">.</span><span class="nc">Instructions</span> <span class="o">&lt;-</span> <span class="n">instructions</span>
-</p></pre></div>
-<p id="p9">LLVM does something similar with its C++ API:</p>
+<span class="n">program</span><span class="o">.</span><span class="nc">Instructions</span> <span class="o">&lt;-</span> <span class="n">instructions</span>
+</pre></div>
+
+<p id="p6">LLVM does something similar with its C++ API:</p>
 <div class="pygments_murphy"><pre><span class="c1">// LLVM equivalent in C++</span>
 
-<p id="p10"><span class="c1">// 'bb' is a basic block within func_main</span>
-<span class="n">BasicBlock</span><span class="o">*</span> <span class="n">label_bb</span> <span class="o">=</span> <span class="n">BasicBlock</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="s">"bb"</span><span class="p">,</span> <span class="n">func_main</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span></p>
-<p id="p11"><span class="c1">// First instruction in bb: call puts("hello")</span>
-<span class="n">CallInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">func_puts</span><span class="p">,</span> <span class="n">const_ptr_8</span><span class="p">,</span> <span class="s">""</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span></p>
-<p id="p12"><span class="c1">// Second instruction in bb: branch back to bb</span>
+<span class="c1">// 'bb' is a basic block within func_main</span>
+<span class="n">BasicBlock</span><span class="o">*</span> <span class="n">label_bb</span> <span class="o">=</span> <span class="n">BasicBlock</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="s">"bb"</span><span class="p">,</span> <span class="n">func_main</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+<span class="c1">// First instruction in bb: call puts("hello")</span>
+<span class="n">CallInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">func_puts</span><span class="p">,</span> <span class="n">const_ptr_8</span><span class="p">,</span> <span class="s">""</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span>
+
+<span class="c1">// Second instruction in bb: branch back to bb</span>
 <span class="n">BranchInst</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">label_bb</span><span class="p">,</span> <span class="n">label_bb</span><span class="p">);</span>
-</p></pre></div>
-<p id="p13">I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:</p>
-<ul><li>Structure the entire program as a graph of basic blocks linked by branch instructions</li>
+</pre></div>
+
+<p id="p7">I'm not yet sure of all the implications for my toy compiler, but already I can see some indications about how to structure the code to allow for optimisations like tail calling:</p>
+<ul>
+<li>Structure the entire program as a graph of basic blocks linked by branch instructions</li>
 <li>Abstract syntax trees can't do everything; instead, they appear as instructions within basic blocks</li>
 <li>Construction of basic blocks must be separate from construction of the instructions within them, so that we can refer to a basic block from one of its own instructions</li>
 <li>As it progresses through compiler passes, the program graph starts looking less functional and more imperative, until it eventually represents actual machine instructions</li>
@@ -520,7 +534,7 @@ import re, collections
   <h3>About Tim</h3>
   <ul>
       <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
-      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/1tgr">@1tgr</a></li> 
   </ul>
   </div>
   <div id="blog_post_list">

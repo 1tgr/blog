@@ -165,13 +165,13 @@ import re, collections
 <li>List comprehension syntax is very similar, if you replace Python's <code>for</code> and <code>in</code> with Haskell's <code>|</code> and <code>&lt;-</code>. (Recurring theme: Haskell prefers symbols to keywords.)</li>
 <li><code>[ start .. end ]</code> is Haskell's built-in range syntax. It's lazy, and generates elements only on demand, which means it's fine to construct an infinite list like this: <code>[ 1 .. ]</code></li>
 <li>Python has neat string slicing syntax:</li>
-<li><code>[:i]</code> is replaced with <code>take i</code>, to take the first _i_ characters</li>
-<li><code>[i:]</code> is replaced with <code>drop i</code>, to take all but the first _i_ characters</li>
-<li>Subscripts can be replaced with the <code>!!</code> operators, which does the same thing, but with O(_N_) complexity. Remember Haskell's strings are lists of characters, not arrays (although see <code>Data.ByteString</code>).</li>
+<li><code>[:i]</code> is replaced with <code>take i</code>, to take the first <em>i</em> characters</li>
+<li><code>[i:]</code> is replaced with <code>drop i</code>, to take all but the first <em>i</em> characters</li>
+<li>Subscripts can be replaced with the <code>!!</code> operators, which does the same thing, but with O(<em>N</em>) complexity. Remember Haskell's strings are lists of characters, not arrays (although see <code>Data.ByteString</code>).</li>
 <li>Python's <code>if</code> keyword maps to different things depending on the context. Here it's used to ask 'is the string empty?', and we replace it with the <code>not</code> and <code>null</code> functions.</li>
 <li><code>++</code> and <code>:</code> stand in for Python's <code>+</code> operator, depending on whether we're concatenating two lists (<code>a ++ b</code>) or pushing a single element onto the start of a list (<code>head : tail</code>)</li>
 </ul>
-<p id="p10">I'm not totally convinced about the performance of the Haskell version, since <code>take</code> and <code>drop</code> are O(<em>N_) and not O(1). However, _N</em> is small here, being the length of a word. If it's a problem we could use <code>ByteString</code> instead for O(1) complexity at the price of having to copy strings.</p>
+<p id="p10">I'm not totally convinced about the performance of the Haskell version, since <code>take</code> and <code>drop</code> are O(<em>N</em>) and not O(1). However, <em>N</em> is small here, being the length of a word. If it's a problem we could use <code>ByteString</code> instead for O(1) complexity at the price of having to copy strings.</p>
 <div class="pygments_murphy"><pre>def known_edits2(word):
     return set(e2 for e1 in edits1(word) for e2 in edits1(e1) if e2 in NWORDS)
 
@@ -238,7 +238,7 @@ import re, collections
   <h3>About Tim</h3>
   <ul>
       <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
-      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/1tgr">@1tgr</a></li> 
   </ul>
   </div>
   <div id="blog_post_list">

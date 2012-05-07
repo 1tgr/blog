@@ -197,7 +197,7 @@ Originally uploaded by <a href="http://www.flickr.com/people/tim-robinson/">Tim 
 <p id="p5">One of the things I love about Haskell is that its pure functional nature makes it straightforward to parallelise code within a single machine. You can normally take any code implemented in terms of <code>map</code> and parallelise it with <code>parMap</code>, from the <a href="http://hackage.haskell.org/packages/archive/parallel/latest/doc/html/Control-Parallel-Strategies.html">Control.Parallel.Strategies</a> module. <code>parMap</code> will use lightweight threads provided by the runtime to apply a function to each element in a list in parallel.</p>
 <p id="p6">The <code>parMap</code> function accepts an argument that controls the evaluation strategy. Most of the examples I've seen use <code>parMap rwhnf</code> ("weak head normal form"), which only evaluates the outside of a data structure; the insides of your data are evaluated lazily, and this doesn't necessarily happen on one of the parallel lightweight threads as intended.</p>
 <p id="p7">To evaluate anything more complicated than a list of simple values in you'll probably need to use <code>parMap rdeepseq</code>, which recurses inside your data on the lightweight thread so that it's fully evaluated by the time <code>parMap</code> finishes. <code>rdeepseq</code> is defined in terms of the <a href="http://hackage.haskell.org/packages/archive/deepseq/latest/doc/html/Control-DeepSeq.html">Control.DeepSeq</a> module, and if you've defined your own types, you'll find you need to implement <code>NFData</code>.</p>
-<p id="p8">A final note on <code>parMap</code>: don't forget to compile with the <code>-threaded</code> flag, then run your program with <code>+RTS -Nx</code>, where _x_ is the number of CPU cores you want to distribute across.</p>
+<p id="p8">A final note on <code>parMap</code>: don't forget to compile with the <code>-threaded</code> flag, then run your program with <code>+RTS -Nx</code>, where <em>x</em> is the number of CPU cores you want to distribute across.</p>
 <h3>forkIO</h3>
 <p id="p9">Haskell supports good old-fashioned manual concurrency with functions in the <a href="http://hackage.haskell.org/packages/archive/base/latest/doc/html/Control-Concurrent.html">Control.Concurrent</a> module. This works broadly the same as in other languages:</p>
 <ul>
@@ -337,7 +337,7 @@ def edits1(word):
   <h3>About Tim</h3>
   <ul>
       <li><img src="/site_img/icon-github.png" width="16" height="16" alt="Github" valign="middle"/> Github - <a href="https://github.com/timrobinson/">timrobinson</a></li> 
-      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/tim_g_robinson">@tim_g_robinson</a></li> 
+      <li><img src="/site_img/icon-twitter.png" width="16" height="16" alt="Twitter" valign="middle"/> Twitter - <a href="http://twitter.com/1tgr">@1tgr</a></li> 
   </ul>
   </div>
   <div id="blog_post_list">
